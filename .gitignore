@@ -10,3 +10,4 @@ qdrant_storage/
 .deepeval/
 .claude/
 CLAUDE.md
+data/guidelines/*.pdf

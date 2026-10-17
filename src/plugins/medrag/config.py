@@ -31,6 +31,12 @@ MEDRAG_CONFIG = ProjectConfig(
         "type 2 diabetes first-line therapy",
         "community-acquired pneumonia antibiotic treatment",
     ],
+    # Recent English abstracts of high-evidence study types only.
+    pubmed_filter=(
+        'AND hasabstract AND english[lang] AND "last 10 years"[dp] '
+        "AND (guideline[pt] OR practice guideline[pt] OR systematic review[pt] "
+        "OR meta-analysis[pt] OR randomized controlled trial[pt])"
+    ),
     chunk_size=512,
     chunk_overlap=64,
     similarity_top_k=4,

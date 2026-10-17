@@ -13,6 +13,8 @@ class ProjectConfig:
     system_prompt: str
     qa_prompt: str
     pubmed_queries: list[str] = field(default_factory=list)
+    # Appended to every PubMed query (PubMed search syntax).
+    pubmed_filter: str = ""
     chunk_size: int = 512
     chunk_overlap: int = 64
     similarity_top_k: int = 4

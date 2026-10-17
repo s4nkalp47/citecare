@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     groq_judge_model: str = "openai/gpt-oss-20b"
 
     llama_cloud_api_key: str = ""
+    # LlamaParse v2 tier: fast | cost_effective | agentic | agentic_plus ("fast" has no markdown)
+    llama_parse_tier: str = "cost_effective"
 
     qdrant_url: str = "http://localhost:6333"
 

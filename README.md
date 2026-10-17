@@ -17,7 +17,7 @@ pytest
 ## Progress
 
 - [x] Phase 1: Foundation (config, project registry, MedRAG plugin config, Qdrant)
-- [ ] Phase 2: Ingestion (LlamaParse, PubmedReader, bootstrap docs)
+- [x] Phase 2: Ingestion (LlamaParse, PubmedReader, bootstrap docs)
 - [ ] Phase 3: Indexing (chunking, FastEmbed, Qdrant)
 - [ ] Phase 4: Query engine and RAGService
 - [ ] Phase 5: Source manager
