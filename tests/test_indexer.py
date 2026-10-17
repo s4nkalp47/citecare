@@ -88,6 +88,24 @@ def test_changed_document_replaces_its_chunks(make_indexer, client):
     assert len(texts) == 1 and "SGLT2" in texts[0]
 
 
+def test_metadata_only_change_replaces_chunks(make_indexer, client):
+    # e.g. guideline urls filled in after an earlier index run: same ids and text, new metadata.
+    make_indexer().run(_docs())
+    before, before_a = count_points(PROJECT, client), count_points(PROJECT, client, source_id="a")
+
+    url = "https://www.nice.org.uk/guidance/ng136"
+    changed = _docs()
+    for doc in changed:
+        if doc.metadata["source_id"] == "a":
+            doc.metadata["url"] = url
+    stats = make_indexer().run(changed)
+
+    assert stats.chunks_written == before_a  # only source "a" re-embedded
+    assert count_points(PROJECT, client) == before  # replaced, not duplicated
+    assert count_points(PROJECT, client, source_id="a") == before_a
+    assert all(p.get("url") == url for p in _payloads(client) if p["source_id"] == "a")
+
+
 def test_missing_documents_are_kept(make_indexer, client):
     first = make_indexer().run(_docs())
     make_indexer().run(_docs()[:1])  # e.g. a --no-pubmed run

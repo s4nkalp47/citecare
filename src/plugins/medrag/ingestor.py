@@ -7,7 +7,7 @@ Every Document carries:
                  dedupe and to delete a source's chunks later
     title        human-readable name used in citations
     page         page number (guidelines only)
-    url          link to the original (when known)
+    url          link to the original (when known; NICE guideline urls come from the file name)
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ _HIDDEN_FROM_LLM = ["source_id", "file_name"]
 
 _GUIDELINE_CODE = re.compile(r"^[a-z]{1,3}\d+$")  # ng136, cg191
 _ACRONYMS = {"nice", "who", "ada", "cdc", "idsa", "ats"}
+_NICE_GUIDANCE_URL = "https://www.nice.org.uk/guidance/{code}"
 
 
 def file_hash(path: Path) -> str:
@@ -45,6 +46,15 @@ def title_from_filename(path: Path) -> str:
         w.upper() if _GUIDELINE_CODE.match(w) or w in _ACRONYMS else w.capitalize()
         for w in words
     )
+
+
+def url_from_filename(path: Path) -> str:
+    """nice_ng136_hypertension.pdf -> 'https://www.nice.org.uk/guidance/ng136' ('' if not NICE)."""
+    words = path.stem.lower().replace("-", "_").split("_")
+    if "nice" not in words:
+        return ""
+    code = next((w for w in words if _GUIDELINE_CODE.match(w)), None)
+    return _NICE_GUIDANCE_URL.format(code=code) if code else ""
 
 
 def pages_from_parse_result(result, file_name: str) -> list[dict]:
@@ -87,6 +97,7 @@ class MedRAGIngestor:
         for path in paths:
             source_id = file_hash(path)
             title = title_from_filename(path)
+            url = url_from_filename(path)
             for page in self._parsed_pages(path, source_id):
                 if not page["markdown"].strip():
                     continue
@@ -98,7 +109,7 @@ class MedRAGIngestor:
                     title=title,
                     page=page["page"],
                     file_name=path.name,
-                    url="",
+                    url=url,
                 ))
         logger.info("Loaded %d guideline pages from %d PDFs", len(docs), len(paths))
         return docs

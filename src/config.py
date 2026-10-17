@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     groq_prompt_guard_model: str = "meta-llama/llama-prompt-guard-2-86m"
     groq_safety_model: str = "openai/gpt-oss-safeguard-20b"
     groq_judge_model: str = "openai/gpt-oss-20b"
+    # Sent to reasoning models (gpt-oss) as `reasoning_effort`; empty = don't send it.
+    groq_reasoning_effort: str = "low"
 
     llama_cloud_api_key: str = ""
     # LlamaParse v2 tier: fast | cost_effective | agentic | agentic_plus ("fast" has no markdown)

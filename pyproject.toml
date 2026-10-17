@@ -17,6 +17,9 @@ dependencies = [
     "llama-index-embeddings-fastembed>=0.3",
     "fastembed>=0.4",  # not pulled in by the integration package above
     "llama-index-vector-stores-qdrant>=0.4",
+    # Phase 4: query engine
+    "llama-index-llms-groq>=0.3",
+    "tenacity>=8.2",  # 429 retries with exponential backoff (src/core/llm.py)
 ]
 
 [project.optional-dependencies]

@@ -18,6 +18,8 @@ class ProjectConfig:
     chunk_size: int = 512
     chunk_overlap: int = 64
     similarity_top_k: int = 4
+    # Retrieved chunks scoring below this are dropped; none left -> insufficient_evidence.
+    similarity_cutoff: float = 0.5
     # Output policy enforced by the output guardrail (Phase 6).
     require_citations: bool = True
     disclaimer: str = ""

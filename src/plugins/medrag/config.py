@@ -15,7 +15,7 @@ Context information from clinical sources is below.
 {context_str}
 ---------------------
 Using only the context above, answer the clinician's question.
-Include citations (source name and a short supporting snippet) for each claim.
+Cite each claim inline with the number of the context block it came from, e.g. [2].
 
 Question: {query_str}
 Answer: """
@@ -40,6 +40,10 @@ MEDRAG_CONFIG = ProjectConfig(
     chunk_size=512,
     chunk_overlap=64,
     similarity_top_k=4,
+    # Calibrated on bge-small-en-v1.5 over NG136/NG28/NG250: in-domain questions scored
+    # 0.73-0.86, off-topic ones (general knowledge, dermatology, jailbreak) 0.42-0.64.
+    # Set at the low end of the gap; the prompt's insufficient_evidence rule backs it up.
+    similarity_cutoff=0.65,
     require_citations=True,
     disclaimer=(
         "This information is for clinical decision support only and does not replace "

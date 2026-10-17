@@ -21,7 +21,8 @@ Config (`src/config.py`), project registry (`src/core/projects.py`), `MEDRAG_CON
 ## Phase 2 — Ingestion ✅
 `src/plugins/medrag/ingestor.py` (`MedRAGIngestor`: LlamaParse v2 with cache in `data/parsed/`,
 `PubMedAbstractReader` in `pubmed.py` for relevance-sorted PubMed abstracts, bootstrap docs), `scripts/ingest_preview.py`. Every Document has `source_type`,
-`source_id`, `title`, `page`, `url`, and a stable `id_`.
+`source_id`, `title`, `page`, `url`, and a stable `id_`. NICE guideline `url`s are derived from the
+file name (`nice_ng136_hypertension.pdf` → `https://www.nice.org.uk/guidance/ng136`, added in Phase 4).
 
 ---
 
@@ -56,30 +57,47 @@ run; Qdrant dashboard at http://localhost:6333/dashboard shows the collection.
 
 ---
 
-## Phase 4 — Query engine and RAGService
+## Phase 4 — Query engine and RAGService ✅
 **Goal:** a question in, a structured, cited answer out.
 
 **Files**
-- `src/core/schemas.py` — `Citation(title, page, url, source_type, snippet)`,
+- `src/core/schemas.py` — `Citation(ref, title, page, url, source_type, snippet, score)`,
   `RAGResponse(answer, citations, confidence: "high"|"medium"|"low"|"insufficient_evidence",
-  contexts: list[str], latency_ms)`.
+  contexts: list[str], latency_ms)`. `ref` is the `[n]` marker used inline in the answer; `score`
+  is the retrieval similarity.
 - `src/core/llm.py` — `get_llm()` returning LlamaIndex `Groq(model=settings.groq_llm_model,
-  temperature=0)`; pass `reasoning_effort` via `additional_kwargs` if supported. Retries on HTTP 429
-  with exponential backoff (`tenacity`).
+  temperature=0, max_retries=0)`. `settings.groq_reasoning_effort` (default `low`, empty = off) goes
+  in `additional_kwargs`: LlamaIndex's own `reasoning_effort` field is only sent for OpenAI
+  o-series models. `chat_with_retry()` retries HTTP 429 with exponential backoff (`tenacity`);
+  the openai client's own retries are off so they don't stack.
 - `src/core/retriever.py` — `Retriever(project)` over `VectorStoreIndex.from_vector_store(...)`,
-  `similarity_top_k=project.similarity_top_k`, optional `source_type` metadata filter, similarity cutoff.
+  `similarity_top_k=project.similarity_top_k`, optional `source_type` metadata filter.
+  `search()` = raw top-k; `retrieve()` also applies `project.similarity_cutoff` (new
+  `ProjectConfig` field; MedRAG uses 0.65, calibrated on in-domain vs off-topic questions).
 - `src/core/generator.py` — `Generator(project)`: builds the prompt from `project.system_prompt` /
   `qa_prompt` with numbered context blocks, asks the LLM for JSON
-  `{answer, cited_sources: [int], confidence}`, validates with Pydantic (one retry on invalid JSON).
-  Citation metadata (title/page/url) comes from the retrieved nodes, never from the LLM.
-- `src/core/service.py` — `RAGService(project_name)`: `ask(question, source_type=None) -> RAGResponse`.
-  If no node passes the cutoff, return `insufficient_evidence` without calling the LLM.
-- `scripts/ask.py` — `python -m scripts.ask "question"` pretty-prints a `RAGResponse`.
+  `{answer, cited_sources: [int], confidence}`, validates with Pydantic (one retry on invalid JSON,
+  sending the bad reply back; a second failure returns `insufficient_evidence` instead of raising).
+  Out-of-range and duplicate `cited_sources` are dropped. The instruction requires inline `[n]`
+  markers matching `cited_sources`; if the model cites sources but the answer has no markers, they
+  are appended to the end of the answer. Citation metadata (title/page/url) comes
+  from the retrieved nodes, never from the LLM.
+- `src/core/query_engine.py` — `RAGQueryEngine(CustomQueryEngine)` with `retriever`, `generator` and
+  `source_type` fields. `custom_query` retrieves; if no node passes the cutoff it returns
+  `insufficient_evidence` without calling the LLM, otherwise it generates. Returns a
+  `PydanticResponse` whose `.response` is the `RAGResponse`.
+- `src/core/service.py` — `RAGService(project_name)`: `ask(question, source_type=None) -> RAGResponse`
+  calls `query_engine.query(question)` (a shallow `model_copy` with `source_type` set when filtering)
+  and fills `latency_ms`.
+- `scripts/ask.py` — `python -m scripts.ask "question"` pretty-prints a `RAGResponse`; `--json`,
+  `--source-type`, and `--retrieve-only` (scores vs cutoff, no LLM call; use it to re-tune the cutoff).
 
 **Dependencies:** `llama-index-llms-groq`, `tenacity`.
 
 **Tests:** mock the LLM (`MockLLM` or a stub returning fixed JSON) and use an in-memory index. Cover:
 citation mapping from node metadata, invalid-JSON retry, insufficient-evidence short-circuit.
+`tests/conftest.py` has a keyword-hash embedding (so scores vary, unlike `MockEmbedding`) and a
+scripted fake LLM.
 
 **User verifies:** 3–5 real questions with `scripts.ask`, e.g. "What is the first-line treatment for
 hypertension in a 60-year-old with type 2 diabetes?" Answers must cite NG136/NG28 pages.

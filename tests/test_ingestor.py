@@ -13,6 +13,7 @@ from src.plugins.medrag.ingestor import (
     MedRAGIngestor,
     pages_from_parse_result,
     title_from_filename,
+    url_from_filename,
 )
 
 FAKE_PAGES = [
@@ -41,6 +42,15 @@ def test_title_from_filename():
     assert title_from_filename(Path("nice_ng28_type2_diabetes.pdf")) == "NICE NG28 Type2 Diabetes"
 
 
+def test_url_from_filename():
+    nice = "https://www.nice.org.uk/guidance/"
+    assert url_from_filename(Path("nice_ng136_hypertension.pdf")) == nice + "ng136"
+    assert url_from_filename(Path("nice_ng28_type2_diabetes.pdf")) == nice + "ng28"
+    assert url_from_filename(Path("NICE-CG191-pneumonia.pdf")) == nice + "cg191"
+    assert url_from_filename(Path("who_tb_guideline.pdf")) == ""  # not NICE
+    assert url_from_filename(Path("nice_overview.pdf")) == ""  # no guideline code
+
+
 def test_load_guidelines_builds_page_documents(ingestor):
     _fake_pdf(ingestor)
     with patch.object(MedRAGIngestor, "_parse_pdf", return_value=FAKE_PAGES):
@@ -50,6 +60,7 @@ def test_load_guidelines_builds_page_documents(ingestor):
     first = docs[0]
     assert first.metadata["source_type"] == "guideline"
     assert first.metadata["title"] == "NICE NG136 Hypertension"
+    assert first.metadata["url"] == "https://www.nice.org.uk/guidance/ng136"
     assert first.id_ == f"{first.metadata['source_id']}:p1"
     assert "source_id" in first.excluded_embed_metadata_keys
 
