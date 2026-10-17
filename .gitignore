@@ -6,6 +6,7 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 data/parsed/
+data/pipeline_storage/
 qdrant_storage/
 .deepeval/
 .claude/

@@ -37,10 +37,14 @@ Config (`src/config.py`), project registry (`src/core/projects.py`), `MEDRAG_CON
   `IngestionPipeline` with `SentenceSplitter(project.chunk_size, project.chunk_overlap)` + embed model,
   the Qdrant vector store, and a persisted docstore (`data/pipeline_storage/<project>/`) with
   `DocstoreStrategy.UPSERTS` so re-running doesn't duplicate chunks and changed docs are replaced.
+  `Indexer.delete_source(source_id)` deletes from Qdrant *and* the docstore (otherwise the docstore
+  would stop a later run from re-adding that source). If the collection is empty but the docstore
+  isn't (Qdrant volume wiped), the docstore is discarded so everything is re-indexed.
 - `scripts/build_index.py` — loads via the project's ingestor (`--no-pubmed`, `--max-results`), runs the
   indexer, prints documents in / chunks written / total points. This becomes the Docker one-shot indexer.
 
-**Dependencies:** `llama-index-embeddings-fastembed`, `llama-index-vector-stores-qdrant`.
+**Dependencies:** `llama-index-embeddings-fastembed`, `fastembed` (the integration package does not
+install it), `llama-index-vector-stores-qdrant`.
 
 **Tests:** use `QdrantClient(":memory:")` and `MockEmbedding(embed_dim=384)`. Check chunks are written
 with metadata, re-running is idempotent, `delete_by_source_id` removes only that source.
