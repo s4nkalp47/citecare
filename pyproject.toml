@@ -1,0 +1,28 @@
+[project]
+name = "medrag"
+version = "0.1.0"
+description = "Clinical-guideline RAG with LlamaIndex, Qdrant and Groq"
+requires-python = ">=3.11"
+# Dependencies are added phase by phase.
+dependencies = [
+    # Phase 1: foundation
+    "pydantic-settings>=2.4",
+    "qdrant-client>=1.12",
+    "groq>=0.11",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100

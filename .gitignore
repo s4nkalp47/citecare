@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+data/parsed/
+qdrant_storage/
+.deepeval/
+.claude/
+CLAUDE.md
