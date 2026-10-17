@@ -41,10 +41,13 @@ def check_groq() -> str:
     reply = client.chat.completions.create(
         model=settings.groq_llm_model,
         messages=[{"role": "user", "content": "Reply with exactly: pong"}],
-        max_tokens=5,
+        # gpt-oss is a reasoning model: leave room for its reasoning tokens.
+        max_tokens=200,
         temperature=0,
+        reasoning_effort="low",
     )
-    return f"{settings.groq_llm_model} replied '{reply.choices[0].message.content.strip()}'"
+    text = (reply.choices[0].message.content or "").strip()
+    return f"{settings.groq_llm_model} replied '{text}'"
 
 
 if __name__ == "__main__":

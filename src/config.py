@@ -12,9 +12,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 
     groq_api_key: str = ""
-    groq_llm_model: str = "llama-3.3-70b-versatile"
+    groq_llm_model: str = "openai/gpt-oss-120b"
     groq_prompt_guard_model: str = "meta-llama/llama-prompt-guard-2-86m"
-    groq_safety_model: str = "meta-llama/llama-guard-4-12b"
+    groq_safety_model: str = "openai/gpt-oss-safeguard-20b"
+    groq_judge_model: str = "openai/gpt-oss-20b"
 
     llama_cloud_api_key: str = ""
 
