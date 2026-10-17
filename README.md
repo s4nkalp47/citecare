@@ -20,7 +20,7 @@ pytest
 - [x] Phase 2: Ingestion (LlamaParse, PubmedReader, bootstrap docs)
 - [x] Phase 3: Indexing (chunking, FastEmbed, Qdrant)
 - [x] Phase 4: Query engine and RAGService
-- [ ] Phase 5: Source manager
+- [x] Phase 5: Source manager
 - [ ] Phase 6: Input/output guardrails
 - [ ] Phase 7: FastAPI
 - [ ] Phase 8: Streamlit UI

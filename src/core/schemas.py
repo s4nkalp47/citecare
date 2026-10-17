@@ -19,6 +19,16 @@ class Citation(BaseModel):
     score: float | None = None  # retrieval similarity
 
 
+class SourceInfo(BaseModel):
+    """One indexed source (a guideline PDF, a PubMed abstract...), aggregated from its chunks."""
+
+    source_id: str
+    title: str
+    source_type: str
+    chunks: int
+    file_name: str | None = None
+
+
 class RAGResponse(BaseModel):
     answer: str
     citations: list[Citation] = []

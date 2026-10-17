@@ -1,6 +1,7 @@
 """MEDRAG_CONFIG: prompts, metadata and policy for the clinical-guideline project."""
 
 from src.core.projects import ProjectConfig
+from src.plugins.medrag.ingestor import MedRAGIngestor
 
 SYSTEM_PROMPT = """\
 You are a clinical decision-support assistant for licensed clinicians.
@@ -50,4 +51,5 @@ MEDRAG_CONFIG = ProjectConfig(
         "professional judgement or local protocols."
     ),
     blocked_topics=["self-harm instructions", "illegal drug synthesis"],
+    ingestor_factory=MedRAGIngestor,
 )

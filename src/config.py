@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     ncbi_api_key: str = ""
 
     data_dir: Path = ROOT_DIR / "data"
+    # Largest source file accepted by SourceManager.upload (Phase 5).
+    max_upload_mb: int = 25
 
 
 @lru_cache

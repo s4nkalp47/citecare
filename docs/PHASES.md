@@ -119,6 +119,12 @@ hypertension in a 60-year-old with type 2 diabetes?" Answers must cite NG136/NG2
   entries, parse cache, and the file for uploaded PDFs).
 - `RAGService` gains `upload_source`, `list_sources`, `delete_source`.
 
+*As built:* the factory returns a `SourceIngestor` (Protocol in `src/core/projects.py`):
+`upload_dir`, `source_id_for(path)`, `load_file(path)`, `remove_source_files(source_id)`, so the
+plugin keeps its hashing and parse-cache layout private. Size limit is `MAX_UPLOAD_MB` (default 25).
+Re-uploading the same file is a no-op. The same content under another name, or a different file
+under an existing name, is rejected (`InvalidSourceError` -> 400; unknown id `SourceNotFoundError` -> 404).
+
 **Tests:** in-memory Qdrant, mocked `_parse_pdf`. Upload → listed → delete → gone; rejects non-PDF.
 
 **Effort:** Medium.

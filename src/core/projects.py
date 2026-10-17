@@ -1,6 +1,29 @@
 """Project registry: the domain-agnostic core looks up domain plugins here."""
 
+from __future__ import annotations
+
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from llama_index.core import Document
+
+
+class SourceIngestor(Protocol):
+    """What the core needs from a plugin's ingestor to manage uploaded sources (Phase 5)."""
+
+    upload_dir: Path  # where uploaded files are saved
+
+    def source_id_for(self, path: Path) -> str:
+        """The `source_id` the Documents of this file will carry."""
+
+    def load_file(self, path: Path) -> list[Document]:
+        """Turn one uploaded file into Documents."""
+
+    def remove_source_files(self, source_id: str) -> list[Path]:
+        """Delete the uploaded file and any cached artefacts of a source; return what was removed."""
 
 
 @dataclass(frozen=True)
@@ -24,6 +47,8 @@ class ProjectConfig:
     require_citations: bool = True
     disclaimer: str = ""
     blocked_topics: list[str] = field(default_factory=list)
+    # Builds the ingestor used for runtime uploads, so the core never imports the plugin.
+    ingestor_factory: Callable[[ProjectConfig], SourceIngestor] | None = None
 
 
 _REGISTRY: dict[str, ProjectConfig] = {}

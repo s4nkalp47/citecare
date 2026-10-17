@@ -88,6 +88,25 @@ class MedRAGIngestor:
         self.guidelines_dir = self.settings.data_dir / "guidelines"
         self.bootstrap_dir = self.settings.data_dir / "bootstrap"
         self.cache_dir = self.settings.data_dir / "parsed"
+        self.upload_dir = self.guidelines_dir  # uploaded PDFs are guidelines
+
+    # ---------- Uploaded sources (SourceIngestor protocol, used by SourceManager) ----------
+
+    def source_id_for(self, path: Path) -> str:
+        return file_hash(path)
+
+    def load_file(self, path: Path) -> list[Document]:
+        return self.load_guidelines([path])
+
+    def remove_source_files(self, source_id: str) -> list[Path]:
+        """Delete the guideline PDF(s) and parse cache(s) of one source."""
+        removed = list(self.cache_dir.glob(f"*-{source_id}.json"))
+        removed += [p for p in self.guidelines_dir.glob("*.pdf") if file_hash(p) == source_id]
+        for path in removed:
+            path.unlink()
+        if removed:
+            logger.info("Removed %s", ", ".join(p.name for p in removed))
+        return removed
 
     # ---------- Guideline PDFs (LlamaParse, cached) ----------
 

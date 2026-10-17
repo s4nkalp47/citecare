@@ -27,7 +27,7 @@ def count_points(project: ProjectConfig, client: QdrantClient | None = None,
     client = client or get_qdrant_client()
     if not client.collection_exists(project.collection_name):
         return 0
-    count_filter = _source_filter(source_id) if source_id else None
+    count_filter = source_filter(source_id) if source_id else None
     return client.count(project.collection_name, count_filter=count_filter, exact=True).count
 
 
@@ -38,11 +38,11 @@ def delete_by_source_id(project: ProjectConfig, source_id: str,
     n = count_points(project, client, source_id=source_id)
     if n:
         client.delete(project.collection_name,
-                      points_selector=rest.FilterSelector(filter=_source_filter(source_id)),
+                      points_selector=rest.FilterSelector(filter=source_filter(source_id)),
                       wait=True)
     return n
 
 
-def _source_filter(source_id: str) -> rest.Filter:
+def source_filter(source_id: str) -> rest.Filter:
     return rest.Filter(must=[rest.FieldCondition(key="source_id",
                                                  match=rest.MatchValue(value=source_id))])
