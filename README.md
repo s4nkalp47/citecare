@@ -21,7 +21,7 @@ pytest
 - [x] Phase 3: Indexing (chunking, FastEmbed, Qdrant)
 - [x] Phase 4: Query engine and RAGService
 - [x] Phase 5: Source manager
-- [ ] Phase 6: Input/output guardrails
+- [x] Phase 6: Input/output guardrails
 - [ ] Phase 7: FastAPI
 - [ ] Phase 8: Streamlit UI
 - [ ] Phase 9: CLI

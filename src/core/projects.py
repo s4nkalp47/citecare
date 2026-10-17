@@ -47,6 +47,8 @@ class ProjectConfig:
     require_citations: bool = True
     disclaimer: str = ""
     blocked_topics: list[str] = field(default_factory=list)
+    # Policy text the output guardrail's safeguard model judges answers against (Phase 6).
+    safety_policy: str = ""
     # Builds the ingestor used for runtime uploads, so the core never imports the plugin.
     ingestor_factory: Callable[[ProjectConfig], SourceIngestor] | None = None
 

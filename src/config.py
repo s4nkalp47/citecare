@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -14,7 +15,10 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_llm_model: str = "openai/gpt-oss-120b"
     groq_prompt_guard_model: str = "meta-llama/llama-prompt-guard-2-86m"
-    groq_safety_model: str = "openai/gpt-oss-safeguard-20b"
+    # Guardrail policy models: output safety check and input blocked-topics check (Phase 6).
+    # gpt-oss-safeguard-20b also works but its free tier is 3 RPM / 2K TPM, too tight for both.
+    groq_safety_model: str = "openai/gpt-oss-20b"
+    groq_topic_model: str = "openai/gpt-oss-20b"
     groq_judge_model: str = "openai/gpt-oss-20b"
     # Sent to reasoning models (gpt-oss) as `reasoning_effort`; empty = don't send it.
     groq_reasoning_effort: str = "low"
@@ -33,6 +37,12 @@ class Settings(BaseSettings):
     data_dir: Path = ROOT_DIR / "data"
     # Largest source file accepted by SourceManager.upload (Phase 5).
     max_upload_mb: int = 25
+
+    # Guardrails (Phase 6). "closed" blocks when a guard call fails; "open" lets the request through.
+    guard_fail_mode: Literal["closed", "open"] = "closed"
+    # Prompt Guard 2 probability above which a question is blocked as injection/jailbreak.
+    prompt_guard_threshold: float = 0.5
+    max_question_chars: int = 2000
 
 
 @lru_cache

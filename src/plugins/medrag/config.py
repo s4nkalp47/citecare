@@ -1,5 +1,7 @@
 """MEDRAG_CONFIG: prompts, metadata and policy for the clinical-guideline project."""
 
+from pathlib import Path
+
 from src.core.projects import ProjectConfig
 from src.plugins.medrag.ingestor import MedRAGIngestor
 
@@ -51,5 +53,7 @@ MEDRAG_CONFIG = ProjectConfig(
         "professional judgement or local protocols."
     ),
     blocked_topics=["self-harm instructions", "illegal drug synthesis"],
+    # Judged by the output guardrail's safeguard model (gpt-oss-safeguard).
+    safety_policy=Path(__file__).with_name("policy.md").read_text(encoding="utf-8"),
     ingestor_factory=MedRAGIngestor,
 )

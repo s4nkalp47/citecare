@@ -35,3 +35,4 @@ class RAGResponse(BaseModel):
     confidence: Confidence
     contexts: list[str] = []  # text of every retrieved chunk, cited or not (used by evals)
     latency_ms: int = 0
+    disclaimer: str | None = None  # set by the output guardrail (Phase 6), shown with the answer

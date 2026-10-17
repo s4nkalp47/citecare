@@ -20,6 +20,7 @@ dependencies = [
     # Phase 4: query engine
     "llama-index-llms-groq>=0.3",
     "tenacity>=8.2",  # 429 retries with exponential backoff (src/core/llm.py)
+    # Phase 6: guardrails - no new dependencies (uses the groq SDK from Phase 1)
 ]
 
 [project.optional-dependencies]
@@ -31,6 +32,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["src*"]
+
+[tool.setuptools.package-data]
+"src.plugins.medrag" = ["policy.md"]  # Phase 6 safety policy
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

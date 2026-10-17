@@ -1,8 +1,10 @@
-"""Shared test doubles: a deterministic keyword embedding and a scripted LLM (no network)."""
+"""Shared test doubles: keyword embedding, scripted LLM and Groq client (no network)."""
 
 import math
 import re
+import threading
 import zlib
+from types import SimpleNamespace
 
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms import ChatMessage, ChatResponse, MessageRole
@@ -46,3 +48,27 @@ class FakeLLM:
         self.calls.append(list(messages))
         return ChatResponse(message=ChatMessage(role=MessageRole.ASSISTANT,
                                                 content=self.replies.pop(0)))
+
+
+class FakeGroqClient:
+    """Stands in for the groq SDK client: `chat.completions.create` returns scripted replies per model.
+
+    A reply that is an Exception is raised instead. Every call's kwargs are recorded.
+    """
+
+    def __init__(self, replies: dict[str, list]):
+        self.replies = {model: list(r) for model, r in replies.items()}
+        self.calls: list[dict] = []
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+        self._lock = threading.Lock()  # the input guard calls two models concurrently
+
+    def _create(self, **kwargs):
+        with self._lock:
+            self.calls.append(kwargs)
+            reply = self.replies[kwargs["model"]].pop(0)
+        if isinstance(reply, BaseException):
+            raise reply
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=reply))])
+
+    def calls_to(self, model: str) -> list[dict]:
+        return [c for c in self.calls if c["model"] == model]
