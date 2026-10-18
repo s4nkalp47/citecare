@@ -1,4 +1,4 @@
-"""Streamlit chat UI for MedRAG. Every request goes through the HTTP API (and so its guardrails).
+"""Streamlit chat UI for CiteCare. Every request goes through the HTTP API (and so its guardrails).
 
 Run from the project root, with the API already running:
     uvicorn src.api.main:app
@@ -16,7 +16,7 @@ from src.ui.formatting import citation_heading, confidence_badge, source_type_la
 
 ALL_SOURCES = "All sources"
 
-st.set_page_config(page_title="MedRAG", page_icon=":material/medical_services:", layout="wide")
+st.set_page_config(page_title="CiteCare", page_icon=":material/medical_services:", layout="wide")
 
 
 @st.cache_resource
@@ -150,7 +150,7 @@ def main() -> None:
     sources = load_sources(client)
 
     with st.sidebar:
-        st.title("MedRAG")
+        st.title("CiteCare")
         sidebar_health(client)
         source_types = sorted({s.source_type for s in sources or []})
         source_filter = st.selectbox(

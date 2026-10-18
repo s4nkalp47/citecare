@@ -1,0 +1,57 @@
+# Phase 11: golden-set evals on demand (Actions -> eval -> Run workflow). Calls Groq.
+#
+# CI can't build the index itself: the guideline PDFs and data/parsed/ are gitignored and parsing
+# spends LlamaParse credits. So this needs repository secrets GROQ_API_KEY and QDRANT_URL, the
+# latter an already-indexed Qdrant reachable from GitHub without an API key (the Qdrant client
+# has no API-key setting). Without them the run stops at the first step.
+name: eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Golden-set cases to run"
+        default: "5"
+        type: string
+      no_llm_metrics:
+        description: "Retrieval hits and refusals only (no judge calls)"
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      QDRANT_URL: ${{ secrets.QDRANT_URL }}
+    steps:
+      - name: Check secrets
+        run: |
+          if [ -z "$GROQ_API_KEY" ] || [ -z "$QDRANT_URL" ]; then
+            echo "::error::Set the GROQ_API_KEY and QDRANT_URL repository secrets (QDRANT_URL: an indexed Qdrant reachable from GitHub)."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e .
+      - name: Run evals
+        env:
+          LIMIT: ${{ inputs.limit }}
+          NO_LLM_METRICS: ${{ inputs.no_llm_metrics }}
+        run: |
+          args=(--limit "$LIMIT")
+          if [ "$NO_LLM_METRICS" = "true" ]; then args+=(--no-llm-metrics); fi
+          python -m evals.run_evals "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: evals/results/
+          if-no-files-found: ignore

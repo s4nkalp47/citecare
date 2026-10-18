@@ -1,0 +1,19 @@
+# Phase 11: keep secrets, local state and caches out of the build context.
+.env
+.venv/
+.git/
+.github/
+# Mounted at runtime (docker-compose.yml): PDFs, parse cache, docstore
+data/
+qdrant_storage/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+.deepeval/
+evals/results/
+.claude/
+CLAUDE.md
+tests/

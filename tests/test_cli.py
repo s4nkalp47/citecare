@@ -215,6 +215,44 @@ def test_ingest_without_ingestor(runner, monkeypatch):
     assert "no ingestor_factory" in result.stderr
 
 
+def test_ingest_survives_pubmed_outage_with_cached_parse(runner, ingest_mocks, monkeypatch,
+                                                         tmp_path):
+    """Phase 11: the Docker indexer must exit 0 when NCBI is down (the api waits on it), and
+    reuse data/parsed instead of calling LlamaParse."""
+    import httpx
+
+    from src.config import Settings
+    from src.plugins.medrag import ingestor as ingestor_mod
+
+    (tmp_path / "guidelines").mkdir()
+    (tmp_path / "bootstrap").mkdir()
+    pdf = tmp_path / "guidelines" / "nice_ng136_hypertension.pdf"
+    pdf.write_bytes(b"%PDF-1.4 fake")
+    (tmp_path / "parsed").mkdir()
+    cache = tmp_path / "parsed" / f"{pdf.stem}-{ingestor_mod.file_hash(pdf)}.json"
+    cache.write_text(json.dumps([{"page": 1, "markdown": "Offer an ACE inhibitor."}]))
+    settings = Settings(data_dir=tmp_path, _env_file=None)
+
+    def no_llamaparse(self, path):
+        raise AssertionError("LlamaParse called despite the cache")
+
+    def ncbi_down(request):
+        raise httpx.ConnectError("NCBI unreachable", request=request)
+
+    real_reader = ingestor_mod.PubMedAbstractReader
+    monkeypatch.setattr(ingestor_mod.MedRAGIngestor, "_parse_pdf", no_llamaparse)
+    monkeypatch.setattr(ingestor_mod, "PubMedAbstractReader", lambda api_key: real_reader(
+        api_key=api_key, client=httpx.Client(transport=httpx.MockTransport(ncbi_down))))
+    project = dataclasses.replace(
+        ingest_mocks, ingestor_factory=lambda p: ingestor_mod.MedRAGIngestor(p, settings))
+    monkeypatch.setattr(cli, "get_project", lambda name: project)
+
+    result = runner.invoke(cli.app, ["ingest"])
+    assert result.exit_code == 0, result.output
+    docs = FakeIndexer.instances[0].ran_with
+    assert [d.metadata["source_type"] for d in docs] == ["guideline"]
+
+
 def test_build_index_wraps_ingest(monkeypatch):
     from scripts import build_index
 

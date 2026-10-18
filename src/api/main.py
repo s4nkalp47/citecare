@@ -75,7 +75,7 @@ def _blocked(stage: str, category: str | None) -> JSONResponse:
 # ---------- App ----------
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="MedRAG API", version="0.1.0",
+    app = FastAPI(title="CiteCare API", version="0.1.0",
                   description="Clinical-guideline question answering behind input/output guardrails.")
 
     # Plain `def` endpoints: the service, guards and Qdrant calls are blocking, so FastAPI runs

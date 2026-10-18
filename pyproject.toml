@@ -1,7 +1,7 @@
 [project]
 name = "medrag"
 version = "0.1.0"
-description = "Clinical-guideline RAG with LlamaIndex, Qdrant and Groq"
+description = "CiteCare: clinical-guideline RAG with LlamaIndex, Qdrant and Groq"
 requires-python = ">=3.11"
 # Dependencies are added phase by phase.
 dependencies = [
@@ -39,7 +39,12 @@ dependencies = [
 medrag = "src.cli:app"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    # Phase 11: Docker Compose and CI/CD - no new runtime dependencies
+    "pyyaml>=6",  # tests/test_deploy.py parses the compose file and workflows
+]
 
 [build-system]
 requires = ["setuptools>=68"]

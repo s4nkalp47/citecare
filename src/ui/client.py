@@ -1,4 +1,4 @@
-"""Thin httpx client for the MedRAG API (src/api/main.py), returning the API's own pydantic models.
+"""Thin httpx client for the CiteCare API (src/api/main.py), returning the API's own pydantic models.
 
 A guardrail block (HTTP 400 with `blocked: true`) is an expected outcome, so `ask` returns it as a
 `BlockedResponse` instead of raising. Everything else that isn't a success raises `APIError`.

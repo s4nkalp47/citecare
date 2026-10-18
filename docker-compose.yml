@@ -1,4 +1,19 @@
-# Phase 1: only Qdrant. The indexer, api and ui services are added in later phases.
+# Phase 11: the whole stack.
+#   docker compose up --build        -> UI http://localhost:8501, API http://localhost:8000/docs
+#   docker compose up -d qdrant      -> Qdrant only (local .venv workflow)
+#   docker compose run --rm indexer ingest --no-pubmed      (any `medrag` command)
+#
+# Only indexer and api get .env (secrets). Inside the network Qdrant and the API are reached by
+# service name, so QDRANT_URL / API_URL are overridden here (environment wins over env_file).
+
+x-build: &build
+  context: .
+  # Interpolated from .env, so the models baked into the images follow it.
+  args:
+    EMBED_MODEL: ${EMBED_MODEL:-BAAI/bge-small-en-v1.5}
+    RERANK_MODEL: ${RERANK_MODEL:-Xenova/ms-marco-MiniLM-L-6-v2}
+    SPARSE_MODEL: ${SPARSE_MODEL:-Qdrant/bm25}
+
 services:
   qdrant:
     image: qdrant/qdrant:v1.19.0
@@ -6,6 +21,69 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+    healthcheck:
+      # The image has no curl, wget or nc: plain HTTP over bash's /dev/tcp.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/6333 &&
+          printf 'GET /readyz HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 &&
+          grep -q ' 200 ' <&3
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # One-shot: indexes data/ (parse cache reused, unchanged documents skipped), then exits.
+  indexer:
+    build:
+      <<: *build
+      target: indexer
+    env_file: .env
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      DATA_DIR: /app/data
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      <<: *build
+      target: api
+    env_file: .env
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      DATA_DIR: /app/data
+    ports:
+      - "8000:8000"
+    # Uploads write PDFs and parse caches here and update the docstore.
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      indexer:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  ui:
+    build:
+      <<: *build
+      target: ui
+    # No env_file: the UI needs no secrets, only the API's address.
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

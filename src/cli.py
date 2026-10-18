@@ -32,7 +32,7 @@ from src.core.vector_store import count_duplicate_chunks
 GUARDRAILS_NOTICE = ("Note: the CLI calls RAGService directly; input/output guardrails are "
                      "bypassed (use the API or UI for guarded answers).")
 
-app = typer.Typer(help="MedRAG developer CLI (no guardrails).", no_args_is_help=True,
+app = typer.Typer(help="CiteCare developer CLI (no guardrails).", no_args_is_help=True,
                   add_completion=False)
 sources_app = typer.Typer(help="List or delete indexed sources.", no_args_is_help=True)
 app.add_typer(sources_app, name="sources")

@@ -603,4 +603,38 @@ responses and fake metrics (no judge calls); the judge against a scripted Groq c
 
 **User verifies:** `docker compose up --build`, open http://localhost:8501; push and watch Actions go green.
 
+*As built:*
+- One multi-stage root `Dockerfile`: `deps` (packages and source) → `models` (FastEmbed models) →
+  `api` / `indexer`. `ui` builds `FROM deps` (no models, it only calls the API). Dependencies are
+  installed from a stub package first (layer cache), then the source is installed **editable** at
+  `/app`: `ROOT_DIR` comes from `src/config.py`'s location, so a site-packages install would move
+  `data_dir`. `DATA_DIR=/app/data` is also set explicitly. Runs as non-root `app` (uid 1000).
+- **Model cache:** no `cache_dir` setting. `QdrantVectorStore(fastembed_sparse_model=...)` doesn't
+  forward one to FastEmbed, so it couldn't reach all three models. The image sets
+  `FASTEMBED_CACHE_PATH=/opt/fastembed` instead, which FastEmbed reads itself (our code still reads
+  no env vars). `scripts/prefetch_models.py` downloads the embedding model always, the reranker if a
+  project has `rerank_candidates > 0`, and the sparse model if one has `hybrid`. Build args
+  `EMBED_MODEL` / `RERANK_MODEL` / `SPARSE_MODEL` come from `.env` via Compose interpolation.
+  FastEmbed tries local files first, so containers don't download at startup.
+- **Compose:** `qdrant` keeps the `qdrant_storage` volume (the local index is reused). Its image
+  has no curl, wget or nc (checked in a container), so the healthcheck sends `GET /readyz` over
+  bash's `/dev/tcp`. **`api` mounts `./data` too**, not only the indexer: uploads write PDFs and
+  parse caches and update the docstore. Only `indexer` and `api` get `env_file: .env`. **`ui` gets
+  only `API_URL=http://api:8000`**. `QDRANT_URL=http://qdrant:6333` and `DATA_DIR` are set under
+  `environment:` (which wins over `.env`'s localhost values). `ui` waits for `api` to be healthy
+  (`/health` is 503 while Qdrant is down).
+- Indexer: `python -m src.cli ingest` (override with `docker compose run --rm indexer ...`). It
+  reuses `data/parsed/` (no LlamaParse on a cache hit), and PubMed failures are logged and skipped
+  per query, so an NCBI outage can't keep `api` from starting (unit-tested in `test_cli.py`).
+- `ci.yml`: workflow `permissions: contents: read`; the `images` job adds `packages: write`,
+  runs only on pushes to `main` after lint/test/gitleaks, and pushes
+  `ghcr.io/<owner>/<repo>-<target>` (`latest` + `sha-…`) with GHA build cache per target.
+- `eval.yml` is a documented stub: `workflow_dispatch` (inputs `limit`, default 5, and
+  `no_llm_metrics`). CI can't build an index (PDFs and parse cache are gitignored, parsing costs
+  credits), and the Qdrant client has no API-key setting, so it needs secrets `GROQ_API_KEY` and
+  `QDRANT_URL` (an indexed Qdrant reachable from GitHub) and fails at once without them. Results
+  are uploaded as an artifact.
+- `pyyaml` added to the dev extras (already installed transitively); `tests/test_deploy.py` checks
+  the compose, Dockerfile, `.dockerignore` and workflow structure and the prefetch script.
+
 **Effort:** Medium–High. Use Plan mode.
