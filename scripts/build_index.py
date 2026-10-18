@@ -1,6 +1,7 @@
 """Phase 3: load documents with the project's ingestor and index them into Qdrant.
 
-Safe to re-run: unchanged documents are skipped. Also used as the Docker one-shot indexer.
+Since Phase 9 a thin wrapper around `medrag ingest` (src/cli.py), kept for existing habits and
+the Docker one-shot indexer. Safe to re-run: unchanged documents are skipped.
 
 Run from the project root:
     python -m scripts.build_index                    # guidelines + bootstrap + PubMed
@@ -8,41 +9,22 @@ Run from the project root:
     python -m scripts.build_index --max-results 3    # PubMed results per query
     python -m scripts.build_index --rebuild          # drop the collection and re-index everything
                                                      # (after changing chunking or hybrid)
+    python -m scripts.build_index --project medrag
 """
 
-import argparse
-import logging
+import sys
 
-from src.core.indexer import Indexer
-from src.core.projects import get_project
-from src.core.vector_store import count_duplicate_chunks
-from src.plugins.medrag.ingestor import MedRAGIngestor
+from src.cli import app
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--project", default="medrag")
-    parser.add_argument("--no-pubmed", action="store_true")
-    parser.add_argument("--max-results", type=int, default=5, help="PubMed results per query")
-    parser.add_argument("--rebuild", action="store_true",
-                        help="delete the collection and docstore first, then index everything")
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    project = get_project(args.project)
-
-    docs = MedRAGIngestor(project).load_all(include_pubmed=not args.no_pubmed,
-                                            pubmed_max_results=args.max_results)
-    indexer = Indexer(project)
-    if args.rebuild:
-        indexer.reset()
-    stats = indexer.run(docs)
-
-    print(f"\nCollection:     {project.collection_name}")
-    print(f"Documents in:   {stats.documents_in}")
-    print(f"Chunks written: {stats.chunks_written}")
-    print(f"Total points:   {stats.total_points}")
-    print(f"Duplicate chunks: {count_duplicate_chunks(project, indexer.client)}")
+    # --project is a top-level CLI option; everything else belongs to `ingest`.
+    args = sys.argv[1:]
+    top: list[str] = []
+    if "--project" in args:
+        i = args.index("--project")
+        top, args = args[i:i + 2], args[:i] + args[i + 2:]
+    app(args=[*top, "ingest", *args], prog_name="build_index")
 
 
 if __name__ == "__main__":

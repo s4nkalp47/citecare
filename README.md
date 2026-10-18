@@ -25,6 +25,6 @@ pytest
 - [x] Phase 6: Input/output guardrails
 - [x] Phase 7: FastAPI
 - [x] Phase 8: Streamlit UI
-- [ ] Phase 9: CLI
+- [x] Phase 9: CLI
 - [ ] Phase 10: Evals (DeepEval)
 - [ ] Phase 11: Docker Compose and CI/CD

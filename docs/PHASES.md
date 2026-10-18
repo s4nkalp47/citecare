@@ -481,6 +481,19 @@ system prompt" → blocked.
 
 **Tests:** `typer.testing.CliRunner` with a mocked service.
 
+*As built:*
+- Global `--project` option (default `medrag`) on the app callback; `python -m src.cli` also works.
+- `ingest` builds the ingestor from `project.ingestor_factory` (so the CLI never imports the
+  plugin) and calls its `load_all(include_pubmed, pubmed_max_results)`; it also takes `--rebuild`
+  (carried over from `build_index`). `scripts/build_index.py` is now a thin wrapper that forwards
+  its args to `medrag ingest` (`--project` moved to the top level).
+- `ask` prints the "guardrails bypassed" notice on **stderr**, so `--json` output stays parseable;
+  `--source-type` filters retrieval. Same rank-only "(top match)" label as the UI, no raw score
+  outside `--json`. `scripts/ask.py` stays for `--retrieve-only`.
+- `sources delete` asks for confirmation unless `--yes/-y`; unknown id → exit 1.
+- `eval` is a stub that exits 1 until Phase 10. The service is built via `cli.make_service`,
+  which tests monkeypatch.
+
 **Effort:** Low.
 
 ---
