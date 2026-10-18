@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     prompt_guard_threshold: float = 0.5
     max_question_chars: int = 2000
 
+    # Project served by the FastAPI app (Phase 7).
+    api_project: str = "medrag"
+
 
 @lru_cache
 def get_settings() -> Settings:

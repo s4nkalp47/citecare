@@ -23,6 +23,10 @@ dependencies = [
     # Phase 4b: retrieval quality - no new dependencies (fastembed provides the cross-encoder
     # reranker and the BM25 sparse model)
     # Phase 6: guardrails - no new dependencies (uses the groq SDK from Phase 1)
+    # Phase 7: FastAPI (httpx, needed by TestClient, is already listed under Phase 2)
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",  # multipart PDF uploads (POST /sources)
 ]
 
 [project.optional-dependencies]

@@ -399,7 +399,7 @@ system prompt" → blocked.
 
 ---
 
-## Phase 7 — FastAPI
+## Phase 7 — FastAPI ✅
 **Goal:** HTTP interface with guardrails.
 
 **Files**
@@ -419,6 +419,23 @@ system prompt" → blocked.
 **Tests:** `TestClient` with mocked service and guards for each endpoint and both block stages.
 
 **User verifies:** `uvicorn src.api.main:app --reload`, then try `/docs`.
+
+*As built:*
+- `create_app()` plus a module-level `app` for uvicorn. Dependencies `get_service`,
+  `get_input_guard`, `get_output_guard` (each `lru_cache`d, built on first request), `get_qdrant`
+  and `get_settings`; tests replace them via `app.dependency_overrides`. The project served comes
+  from a new setting `API_PROJECT` (default `medrag`).
+- Endpoints are plain `def` (service, guards and Qdrant are blocking), so they run in the threadpool.
+- `POST /ask`: `AskRequest.question` has no length limits so empty/over-long questions go through
+  the input guard and get the same 400 blocked body (`category="empty"`/`"too_long"`). Missing
+  `question` is FastAPI's 422. Messages are fixed per stage (`BLOCKED_MESSAGES` in `main.py`).
+- `POST /sources` → 201 `SourceInfo`; `InvalidSourceError` → 400 `{detail}`. `DELETE` → 200
+  `{source_id, chunks_removed}`; `SourceNotFoundError` → 404.
+- `GET /health` → `{status, project, qdrant_reachable, collection, points, models}`; HTTP 503 with
+  `status="degraded"` and `points=null` when Qdrant is unreachable (usable as a Docker healthcheck in
+  Phase 11). `models` lists LLM, Prompt Guard, safety, topic, embedding and reranker model names.
+- `httpx` was already a dependency (Phase 2). Starlette 1.x warns that `TestClient` over `httpx` is
+  deprecated in favour of `httpx2`; it still works, revisit if a release drops it.
 
 **Effort:** Medium.
 
