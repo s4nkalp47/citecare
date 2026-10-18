@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     # Project served by the FastAPI app (Phase 7).
     api_project: str = "medrag"
 
+    # Base URL of the FastAPI app, used by the Streamlit UI (Phase 8).
+    api_url: str = "http://localhost:8000"
+
 
 @lru_cache
 def get_settings() -> Settings:

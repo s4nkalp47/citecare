@@ -27,6 +27,8 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "python-multipart>=0.0.9",  # multipart PDF uploads (POST /sources)
+    # Phase 8: Streamlit UI (talks to the API over httpx, listed under Phase 2)
+    "streamlit>=1.50",  # st.badge, :color-badge[] markdown, width="stretch"
 ]
 
 [project.optional-dependencies]

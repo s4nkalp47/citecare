@@ -446,6 +446,10 @@ system prompt" → blocked.
 
 **Files**
 - `src/ui/client.py` — thin `httpx` client for the API (`settings.api_url`, default `http://localhost:8000`).
+  Returns the API's pydantic models; a guardrail block (400 with `blocked: true`) comes back as a
+  `BlockedResponse`, other failures raise `APIError` / `APIUnavailableError`.
+- `src/ui/formatting.py` — pure display helpers (confidence badge, citation heading with the rank
+  label), kept out of `app.py` so the "never show the score" rule is unit-tested.
 - `src/ui/app.py` — chat history; answer with confidence badge, citations in an expander (title, page,
   link), clear message when blocked; sidebar: API health, upload PDF, list/delete sources,
   `source_type` filter.
@@ -456,7 +460,7 @@ system prompt" → blocked.
 
 **Dependencies:** `streamlit`.
 
-**Tests:** `client.py` against a mocked transport (`httpx.MockTransport`).
+**Tests:** `client.py` against a mocked transport (`httpx.MockTransport`); `formatting.py` (no score shown).
 
 **User verifies:** `streamlit run src/ui/app.py` with the API running.
 
