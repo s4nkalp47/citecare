@@ -228,10 +228,54 @@ def test_build_index_wraps_ingest(monkeypatch):
 
 # ---------- eval ----------
 
-def test_eval_not_wired_yet(runner):
-    result = runner.invoke(cli.app, ["eval"])
+@pytest.fixture
+def eval_run(monkeypatch):
+    seen: dict = {}
+
+    def run(project, **kwargs):
+        seen.update(project=project, **kwargs)
+        return seen.pop("_code", 0)
+
+    monkeypatch.setattr(cli.run_evals, "run", run)
+    return seen
+
+
+def test_eval_forwards_flags_and_exit_code(runner, service, eval_run):
+    eval_run["_code"] = 2
+    result = runner.invoke(cli.app, ["--project", "medrag", "eval", "--limit", "3",
+                                     "--metrics", "correctness,faithfulness",
+                                     "--resume", "evals/results/x.json", "--judge-delay", "0",
+                                     "--threshold", "correctness=0.7"])
+    assert result.exit_code == 2, result.output
+    assert eval_run["project"] == "medrag" and eval_run["limit"] == 3
+    assert eval_run["metrics"] == ["faithfulness", "correctness"]  # canonical order
+    assert str(eval_run["resume"]).replace("\\", "/") == "evals/results/x.json"
+    assert eval_run["judge_delay"] == 0 and eval_run["thresholds"] == {"correctness": 0.7}
+    assert eval_run["service"] is service[0]
+
+
+def test_eval_no_llm_metrics_and_defaults(runner, service, eval_run):
+    result = runner.invoke(cli.app, ["eval", "--no-llm-metrics"])
+    assert result.exit_code == 0, result.output
+    assert eval_run["metrics"] == [] and eval_run["limit"] is None and eval_run["resume"] is None
+
+
+def test_eval_rejects_unknown_metric_and_bad_threshold(runner, service, eval_run):
+    result = runner.invoke(cli.app, ["eval", "--metrics", "bleu"])
+    assert result.exit_code == 2 and "unknown metric" in result.output
+    result = runner.invoke(cli.app, ["eval", "--threshold", "correctness=2"])
+    assert result.exit_code == 2 and "between 0 and 1" in result.output
+    assert "project" not in eval_run  # never ran
+
+
+def test_eval_reports_eval_errors(runner, service, monkeypatch):
+    def run(project, **kwargs):
+        raise cli.run_evals.EvalError("bad resume file")
+
+    monkeypatch.setattr(cli.run_evals, "run", run)
+    result = runner.invoke(cli.app, ["eval", "--no-llm-metrics"])
     assert result.exit_code == 1
-    assert "Phase 10" in result.stderr
+    assert "Error: bad resume file" in result.stderr
 
 
 def test_no_args_shows_help(runner):

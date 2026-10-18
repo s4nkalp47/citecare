@@ -9,6 +9,7 @@ data/parsed/
 data/pipeline_storage/
 qdrant_storage/
 .deepeval/
+evals/results/
 .claude/
 CLAUDE.md
 data/guidelines/*.pdf

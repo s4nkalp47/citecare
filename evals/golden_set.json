@@ -1,0 +1,198 @@
+[
+  {
+    "id": "ng136-01",
+    "question": "When diagnosing hypertension, what should be done if the blood pressure readings differ between the two arms?",
+    "expected_answer": "Measure blood pressure in both arms. If the difference between arms is more than 15 mmHg, repeat the measurements. If the difference remains more than 15 mmHg on the second measurement, measure subsequent blood pressures in the arm with the higher reading.",
+    "expected_source": "NICE NG136 Hypertension",
+    "recs": ["1.2.1"],
+    "style": "guideline"
+  },
+  {
+    "id": "ng28-01",
+    "question": "How frequently should HbA1c be checked in type 2 diabetes, before and after glucose-lowering therapy is stable?",
+    "expected_answer": "Every 3 to 6 months (tailored to individual needs) until HbA1c is stable on unchanging therapy, then every 6 months once the HbA1c level and blood glucose lowering therapy are stable.",
+    "expected_source": "NICE NG28 Type2 Diabetes",
+    "recs": ["1.5.1"],
+    "style": "guideline"
+  },
+  {
+    "id": "ng250-01",
+    "question": "Which microbiological tests should be considered for adults with moderate- or high-severity community-acquired pneumonia?",
+    "expected_answer": "Consider blood cultures if there are additional clinical indications such as suspected sepsis; sputum cultures, taking into account previous antibiotic treatment, clinical trajectory, comorbidities, recent hospitalisation and the likelihood of a good-quality sample; pneumococcal urinary antigen tests to support de-escalation to a narrower-spectrum antibiotic; and legionella urinary antigen tests if the person has risk factors for legionella infection.",
+    "expected_source": "NICE NG250 Pneumonia",
+    "recs": ["1.4.6"],
+    "style": "guideline"
+  },
+  {
+    "id": "neg-01",
+    "kind": "refusal",
+    "question": "Which antihypertensive should I start for a pregnant woman with chronic hypertension?",
+    "expected_answer": "Not answered by these guidelines: NG136 refers to NICE's guideline on hypertension in pregnancy for women who are pregnant, planning pregnancy or breastfeeding (and notes that ACE inhibitors and ARBs should not be used in pregnancy unless absolutely necessary).",
+    "style": "negative"
+  },
+  {
+    "id": "ng136-02",
+    "question": "Which clinic and out-of-office blood pressure readings confirm a diagnosis of hypertension?",
+    "expected_answer": "Confirm hypertension in people with a clinic blood pressure of 140/90 mmHg or higher and an ABPM daytime average or HBPM average of 135/85 mmHg or higher.",
+    "expected_source": "NICE NG136 Hypertension",
+    "recs": ["1.2.8"],
+    "style": "guideline"
+  },
+  {
+    "id": "ng28-02",
+    "question": "Newly diagnosed type 2 diabetes, no other conditions - what should I start, and what if they can't take metformin?",
+    "expected_answer": "Offer modified-release metformin and an SGLT-2 inhibitor. If metformin is contraindicated or not tolerated, offer monotherapy with an SGLT-2 inhibitor.",
+    "expected_source": "NICE NG28 Type2 Diabetes",
+    "recs": ["1.13.1", "1.13.2"],
+    "style": "two_recs"
+  },
+  {
+    "id": "ng250-02",
+    "question": "When should intravenous antibiotics for pneumonia be reviewed?",
+    "expected_answer": "If intravenous antibiotics are given, review them by 48 hours and, if possible, consider switching to oral antibiotics to complete the course.",
+    "expected_source": "NICE NG250 Pneumonia",
+    "recs": ["1.5.5"],
+    "style": "guideline"
+  },
+  {
+    "id": "ng136-03",
+    "question": "How should blood pressure be measured in someone with falls or postural dizziness, and what drop counts as significant?",
+    "expected_answer": "Measure blood pressure with the person lying on their back (or seated if lying down is inconvenient), then again after they have been standing for at least 1 minute. If systolic pressure falls by 20 mmHg or more, or diastolic by 10 mmHg or more, after standing for at least 1 minute: consider likely causes including reviewing current medication, manage appropriately, measure subsequent blood pressures with the person standing, and consider referral to specialist care if symptoms persist despite addressing likely causes.",
+    "expected_source": "NICE NG136 Hypertension",
+    "recs": ["1.1.5", "1.1.6"],
+    "style": "two_recs"
+  },
+  {
+    "id": "ng28-03",
+    "question": "Frail elderly patient with type 2 diabetes who can't tolerate metformin and is prone to dehydration and low blood pressure - which single drug?",
+    "expected_answer": "If metformin is contraindicated or not tolerated, assess whether the person's frailty places them at risk of adverse events from SGLT-2 inhibitors (such as volume depletion or hypotension). If it does, consider monotherapy with a DPP-4 inhibitor; if it does not, consider monotherapy with an SGLT-2 inhibitor.",
+    "expected_source": "NICE NG28 Type2 Diabetes",
+    "recs": ["1.19.2"],
+    "style": "clinician"
+  },
+  {
+    "id": "ng250-03",
+    "question": "Adult admitted with CAP still had a temperature of 38 and a heart rate of 110 yesterday - OK to send home?",
+    "expected_answer": "Do not routinely discharge adults with community-acquired pneumonia who in the past 24 hours have had 2 or more of: temperature above 37.5C, respiratory rate 24 breaths per minute or more, heart rate above 100 beats per minute, systolic blood pressure 90 mmHg or less, oxygen saturation below 90% on room air (or failure to meet baseline oxygen requirements), abnormal mental status, or inability to eat without assistance. With both a raised temperature and a raised heart rate, this patient should not routinely be discharged.",
+    "expected_source": "NICE NG250 Pneumonia",
+    "recs": ["1.6.7"],
+    "style": "clinician"
+  },
+  {
+    "id": "neg-02",
+    "kind": "refusal",
+    "question": "How many units of basal-bolus insulin should a 25-year-old with new type 1 diabetes be started on?",
+    "expected_answer": "Not answered by these guidelines: NG28 covers type 2 diabetes only and refers to NICE's guideline on type 1 diabetes.",
+    "style": "negative"
+  },
+  {
+    "id": "ng136-04",
+    "question": "My patient's ankles have swollen since starting amlodipine for hypertension - what should I switch to?",
+    "expected_answer": "If a calcium-channel blocker is not tolerated, for example because of oedema, offer a thiazide-like diuretic to treat hypertension.",
+    "expected_source": "NICE NG136 Hypertension",
+    "recs": ["1.4.36"],
+    "style": "clinician"
+  },
+  {
+    "id": "ng28-04",
+    "question": "What medicines are recommended for adults with early onset type 2 diabetes?",
+    "expected_answer": "Offer modified-release metformin and an SGLT-2 inhibitor, and consider adding either a GLP-1 receptor agonist (for its cardiovascular, renal and glycaemic benefits) or tirzepatide (for its glycaemic benefits).",
+    "expected_source": "NICE NG28 Type2 Diabetes",
+    "recs": ["1.16.1"],
+    "style": "guideline"
+  },
+  {
+    "id": "ng250-04",
+    "question": "Inpatient with community-acquired pneumonia not improving after 3 days of antibiotics - which blood markers can help, and what non-bacterial causes should I keep in mind?",
+    "expected_answer": "Consider measuring CRP or procalcitonin 3 or 4 days after starting treatment if there is clinical concern about treatment failure. When reassessing, be aware of possible non-bacterial causes, such as influenza.",
+    "expected_source": "NICE NG250 Pneumonia",
+    "recs": ["1.11.7", "1.11.2"],
+    "style": "two_recs"
+  },
+  {
+    "id": "ng136-05",
+    "question": "Which adults under 80 with stage 1 hypertension should have antihypertensive drug treatment discussed?",
+    "expected_answer": "Discuss starting antihypertensive drug treatment, in addition to lifestyle advice, with adults under 80 with persistent stage 1 hypertension who have 1 or more of: target organ damage, established cardiovascular disease, renal disease, diabetes, or an estimated 10-year cardiovascular risk of 10% or more.",
+    "expected_source": "NICE NG136 Hypertension",
+    "recs": ["1.4.10"],
+    "style": "guideline"
+  },
+  {
+    "id": "ng28-05",
+    "question": "Patient has been on ordinary metformin for years but now gets GI upset - should I change it?",
+    "expected_answer": "For adults already taking standard-release metformin, continue it, or switch to modified-release metformin if standard-release metformin is not tolerated or if the person prefers.",
+    "expected_source": "NICE NG28 Type2 Diabetes",
+    "recs": ["1.23.1"],
+    "style": "clinician"
+  },
+  {
+    "id": "ng250-05",
+    "question": "Which corticosteroid is preferred when treating high-severity community-acquired pneumonia in hospital?",
+    "expected_answer": "Consider starting treatment with intravenous hydrocortisone. If hydrocortisone is not suitable, consider an alternative corticosteroid such as dexamethasone by the most appropriate route. Use may be off label, and the MHRA advises avoiding coadministration of a corticosteroid with a fluoroquinolone.",
+    "expected_source": "NICE NG250 Pneumonia",
+    "recs": ["1.8.2"],
+    "style": "guideline"
+  },
+  {
+    "id": "neg-03",
+    "kind": "refusal",
+    "question": "What glucose targets and first treatment should a woman with gestational diabetes have?",
+    "expected_answer": "Not answered by these guidelines: NG28 refers to NICE's guideline on diabetes in pregnancy for pregnancy-related targets and care.",
+    "style": "negative"
+  },
+  {
+    "id": "ng136-06",
+    "question": "Before escalating treatment for resistant hypertension, what should be checked, and which drugs are considered at step 4 if potassium is above 4.5 mmol/l?",
+    "expected_answer": "First confirm elevated clinic blood pressure with ambulatory or home blood pressure recordings, assess for postural hypotension and discuss adherence. If blood potassium is more than 4.5 mmol/l, consider an alpha-blocker or beta-blocker.",
+    "expected_source": "NICE NG136 Hypertension",
+    "recs": ["1.4.47", "1.4.51"],
+    "style": "two_recs"
+  },
+  {
+    "id": "ng28-06",
+    "question": "What should sick day rules in a type 2 diabetes treatment plan cover?",
+    "expected_answer": "Give clear sick day rules in each person's individualised treatment plan. Depending on their needs and medicines, these may specify whether and how medicines should change if the person is unwell or having surgery; whether any medicines should be stopped if there is a risk of dehydration, vomiting and diarrhoea (relevant for metformin and SGLT-2 inhibitors); how to adjust insulin doses; and how to restart medication after recovery.",
+    "expected_source": "NICE NG28 Type2 Diabetes",
+    "recs": ["1.10.1"],
+    "style": "guideline"
+  },
+  {
+    "id": "ng250-06",
+    "question": "Hospital-acquired pneumonia growing a multidrug-resistant organism - who should I involve?",
+    "expected_answer": "Seek specialist advice from a microbiologist for people with hospital-acquired pneumonia who have multidrug-resistant bacteria or symptoms that are not improving as expected with antibiotics.",
+    "expected_source": "NICE NG250 Pneumonia",
+    "recs": ["1.11.6"],
+    "style": "clinician"
+  },
+  {
+    "id": "ng136-07",
+    "question": "Clinic BP 186/122 but no symptoms and no signs needing same-day referral - what should I do now?",
+    "expected_answer": "Carry out investigations for target organ damage as soon as possible. If target organ damage is identified, consider starting antihypertensive drug treatment immediately, without waiting for ABPM or HBPM results. If none is identified, confirm the diagnosis by repeating clinic blood pressure measurement within 7 days, or by considering ABPM (or HBPM if ABPM is unsuitable or not tolerated) with a clinical review within 7 days.",
+    "expected_source": "NICE NG136 Hypertension",
+    "recs": ["1.5.1"],
+    "style": "clinician"
+  },
+  {
+    "id": "ng28-07",
+    "question": "Type 2 diabetic with erratic glucose control and unexplained bloating and vomiting - what diagnosis should I think about?",
+    "expected_answer": "Think about a diagnosis of gastroparesis, taking into account possible alternative diagnoses.",
+    "expected_source": "NICE NG28 Type2 Diabetes",
+    "recs": ["1.38.1"],
+    "style": "clinician"
+  },
+  {
+    "id": "ng250-07",
+    "question": "What is the first-line oral antibiotic for an adult with non-severe hospital-acquired pneumonia who is not at higher risk of resistance?",
+    "expected_answer": "Co-amoxiclav 500/125 mg three times a day for 5 days, then review.",
+    "expected_source": "NICE NG250 Pneumonia",
+    "recs": [],
+    "style": "guideline"
+  },
+  {
+    "id": "neg-04",
+    "kind": "refusal",
+    "question": "Should nirmatrelvir or remdesivir be given to an adult admitted with COVID-19 pneumonia?",
+    "expected_answer": "Not answered by these guidelines: NG250 covers bacterial community- and hospital-acquired pneumonia antibiotics and does not cover COVID-19 antivirals.",
+    "style": "negative"
+  }
+]

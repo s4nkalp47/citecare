@@ -312,6 +312,15 @@ def test_service_ask_end_to_end(retriever):
     assert response.latency_ms >= 0
 
 
+def test_service_ask_with_nodes_returns_retrieved_nodes(retriever):
+    service = _service(retriever, FakeLLM(_reply()))
+    response, nodes = service.ask_with_nodes("metformin first-line treatment type 2 diabetes")
+
+    assert [n.node.get_content() for n in nodes] == response.contexts
+    assert nodes[0].node.metadata["title"] == "NICE NG28 Type2 Diabetes"
+    assert response.latency_ms >= 0
+
+
 def test_service_insufficient_evidence_skips_llm(retriever):
     llm = FakeLLM()
     response = _service(retriever, llm).ask("zebra stripes savanna")
@@ -368,7 +377,8 @@ def _settings(**overrides) -> Settings:
 def test_get_llm_configures_groq():
     get_llm.cache_clear()
     with patch.object(llm_module, "get_settings",
-                      return_value=_settings(groq_api_key="test", groq_llm_model="m")):
+                      return_value=_settings(groq_api_key="test", groq_llm_model="m",
+                                             groq_reasoning_effort="low")):
         llm = get_llm()
     get_llm.cache_clear()
 

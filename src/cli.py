@@ -6,7 +6,8 @@ After `pip install -e .`:
     medrag ask "..." --source-type guideline --json
     medrag sources list
     medrag sources delete <source_id> [--yes]
-    medrag eval                      # wired in Phase 10
+    medrag eval [--limit N] [--no-llm-metrics] [--metrics a,b] [--resume FILE]
+                [--judge-delay S] [--threshold NAME=VALUE]   # Phase 10, see evals/run_evals.py
     medrag --project <name> ...      # default: medrag
 
 Without the entry point: python -m src.cli ...
@@ -15,10 +16,12 @@ Without the entry point: python -m src.cli ...
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
 
+from evals import JUDGE_DELAY_SECONDS, run_evals
 from src.core.indexer import Indexer
 from src.core.projects import get_project
 from src.core.schemas import RAGResponse
@@ -149,9 +152,37 @@ def sources_delete(ctx: typer.Context,
 # ---------- eval ----------
 
 @app.command("eval")
-def eval_command() -> None:
-    """Run the DeepEval suite (available from Phase 10)."""
-    _fail("Evals are not implemented yet (Phase 10)")
+def eval_command(ctx: typer.Context,
+                 limit: Annotated[int | None, typer.Option(
+                     min=1, help="Only the first N golden-set cases.")] = None,
+                 no_llm_metrics: Annotated[bool, typer.Option(
+                     "--no-llm-metrics", help="No judge calls: retrieval hits and refusals "
+                                              "only.")] = False,
+                 metrics: Annotated[str, typer.Option(
+                     help="Comma-separated LLM metrics.")] = ",".join(run_evals.METRIC_NAMES),
+                 resume: Annotated[Path | None, typer.Option(
+                     help="Continue this results file (evals/results/*.json).")] = None,
+                 judge_delay: Annotated[float, typer.Option(
+                     min=0, help="Seconds to wait after each judge call.")] = JUDGE_DELAY_SECONDS,
+                 threshold: Annotated[list[str] | None, typer.Option(
+                     help="Override a threshold, NAME=VALUE (repeatable).")] = None,
+                 ) -> None:
+    """Score the golden set: retrieval hits, refusals and DeepEval metrics (calls Groq).
+
+    Exit code 0 when every threshold is met, 1 below a threshold, 2 stopped on a rate limit
+    (continue with --resume)."""
+    try:
+        metric_names = [] if no_llm_metrics else run_evals.parse_metrics(metrics)
+        thresholds = run_evals.parse_thresholds(threshold or [])
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    try:
+        code = run_evals.run(ctx.obj["project"], limit=limit, metrics=metric_names, resume=resume,
+                             judge_delay=judge_delay, thresholds=thresholds,
+                             service=make_service(ctx.obj["project"]))
+    except run_evals.EvalError as exc:
+        _fail(str(exc))
+    raise typer.Exit(code=code)
 
 
 def _fail(message: str) -> NoReturn:

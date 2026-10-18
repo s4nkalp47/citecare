@@ -19,7 +19,11 @@ class Settings(BaseSettings):
     # gpt-oss-safeguard-20b also works but its free tier is 3 RPM / 2K TPM, too tight for both.
     groq_safety_model: str = "openai/gpt-oss-20b"
     groq_topic_model: str = "openai/gpt-oss-20b"
-    groq_judge_model: str = "openai/gpt-oss-20b"
+    # DeepEval judge (Phase 10): its own rate limit, and a different model family from the
+    # gpt-oss generator so it doesn't grade answers written in its own style.
+    groq_judge_model: str = "qwen/qwen3.8-27b"
+    # Sent to the judge as `reasoning_effort`; empty = don't send it. qwen3.8 accepts "none".
+    groq_judge_reasoning_effort: str = "none"
     # Sent to reasoning models (gpt-oss) as `reasoning_effort`; empty = don't send it.
     groq_reasoning_effort: str = "low"
 

@@ -26,5 +26,5 @@ pytest
 - [x] Phase 7: FastAPI
 - [x] Phase 8: Streamlit UI
 - [x] Phase 9: CLI
-- [ ] Phase 10: Evals (DeepEval)
+- [x] Phase 10: Evals (DeepEval)
 - [ ] Phase 11: Docker Compose and CI/CD

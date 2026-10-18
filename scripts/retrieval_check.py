@@ -33,7 +33,6 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import logging
-import re
 import statistics
 import tempfile
 import time
@@ -55,6 +54,7 @@ from src.core.reranker import FastEmbedRerank
 from src.core.retriever import Retriever
 from src.core.vector_store import count_duplicate_chunks, count_points
 from src.plugins.medrag.ingestor import HIDDEN_FROM_EMBED, MedRAGIngestor
+from src.plugins.medrag.nice import find_rec
 
 DENSE_DEPTH = 50
 
@@ -182,18 +182,6 @@ def runs(embed_models: list[str], rerank_model: str) -> list[Run]:
 
 # ---------- Matching ----------
 
-def _from(node: NodeWithScore, case: Case) -> bool:
-    return case.guideline in str(node.node.metadata.get("title", "")).split()
-
-
-def _has_rec(node: NodeWithScore, rec: str) -> bool:
-    rec_ids = node.node.metadata.get("rec_ids")
-    if rec_ids is not None:
-        return rec in rec_ids
-    pattern = rf"(?m)^(?:#+\s*)?(?:\*\*)?{re.escape(rec)}\b"  # page chunks: rec starts a line
-    return re.search(pattern, node.node.get_content()) is not None
-
-
 def _on_page(node: NodeWithScore, pages: tuple[int, ...]) -> bool:
     meta = node.node.metadata
     first = meta.get("page")
@@ -203,15 +191,14 @@ def _on_page(node: NodeWithScore, pages: tuple[int, ...]) -> bool:
 
 def found_in(nodes: list[NodeWithScore], case: Case) -> float | None:
     """Lowest score among the target chunks if every target is in `nodes`, else None."""
-    targets = [lambda n, r=r: _has_rec(n, r) for r in case.recs] or \
-        [lambda n: _on_page(n, case.pages)]
-    scores = []
-    for matches in targets:
-        hit = next((n for n in nodes if _from(n, case) and matches(n)), None)
-        if hit is None:
-            return None
-        scores.append(hit.score)
-    return min(scores)
+    if case.recs:
+        hits = [find_rec(nodes, case.guideline, rec) for rec in case.recs]
+    else:
+        hits = [next((n for n in nodes if case.guideline in str(n.node.metadata.get("title", ""))
+                      .split() and _on_page(n, case.pages)), None)]
+    if any(hit is None for hit in hits):
+        return None
+    return min(hit.score for hit in hits)
 
 
 def context(pool: list[NodeWithScore], k: int, mode: str,

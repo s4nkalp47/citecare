@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 
+from llama_index.core.schema import NodeWithScore
+
 from src.core.generator import Generator
 from src.core.projects import get_project
 from src.core.query_engine import RAGQueryEngine
@@ -23,14 +25,21 @@ class RAGService:
         )
 
     def ask(self, question: str, source_type: str | None = None) -> RAGResponse:
+        return self.ask_with_nodes(question, source_type)[0]
+
+    def ask_with_nodes(self, question: str, source_type: str | None = None,
+                       ) -> tuple[RAGResponse, list[NodeWithScore]]:
+        """`ask` plus the retrieved nodes with their metadata (evals check which chunks were
+        retrieved; `RAGResponse.contexts` only has their text)."""
         start = time.perf_counter()
         engine = self.query_engine
         if source_type:
             # Shallow copy: shares the retriever and generator, only the filter differs.
             engine = engine.model_copy(update={"source_type": source_type})
-        result: RAGResponse = engine.query(question).response
+        output = engine.query(question)
+        result: RAGResponse = output.response
         result.latency_ms = round((time.perf_counter() - start) * 1000)
-        return result
+        return result, list(output.source_nodes)
 
     # ---------- Sources (Phase 5) ----------
 

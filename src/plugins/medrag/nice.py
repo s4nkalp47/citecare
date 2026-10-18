@@ -30,7 +30,7 @@ from typing import Any
 from llama_index.core.bridge.pydantic import PrivateAttr
 from llama_index.core.node_parser import NodeParser, SentenceSplitter
 from llama_index.core.node_parser.node_utils import build_nodes_from_splits
-from llama_index.core.schema import BaseNode
+from llama_index.core.schema import BaseNode, NodeWithScore
 from llama_index.core.utils import get_tokenizer
 
 DOC_FORMAT = "nice_guideline"  # Document.metadata["doc_format"] for joined NICE guidelines
@@ -255,3 +255,22 @@ def _with(keys: list[str]) -> list[str]:
 def make_node_parser(project) -> NiceGuidelineParser:
     """ProjectConfig.node_parser_factory for MedRAG."""
     return NiceGuidelineParser(chunk_size=project.chunk_size, chunk_overlap=project.chunk_overlap)
+
+
+# ---------- Retrieval checks (scripts.retrieval_check, evals) ----------
+
+def find_rec(nodes: Sequence[NodeWithScore], guideline: str, rec: str) -> NodeWithScore | None:
+    """The first node from `guideline` (a code in the title, e.g. "NG136") holding recommendation
+    `rec`: listed in its `rec_ids`, or (page chunks, no `rec_ids`) starting a line of its text."""
+    pattern = re.compile(rf"(?m)^(?:#+\s*)?(?:\*\*)?{re.escape(rec)}\b")
+    for node in nodes:
+        meta = node.node.metadata
+        if guideline not in str(meta.get("title", "")).split():
+            continue
+        rec_ids = meta.get("rec_ids")
+        if rec_ids is not None:
+            if rec in rec_ids:
+                return node
+        elif pattern.search(node.node.get_content()):
+            return node
+    return None

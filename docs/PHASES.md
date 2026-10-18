@@ -502,29 +502,81 @@ system prompt" → blocked.
 **Goal:** measurable answer quality, runnable on demand.
 
 **Files**
-- `evals/golden_set.json` — ~20 questions across NG136, NG28, NG250: `question`, `expected_answer`,
-  `expected_source` (title). Claude drafts them from the parsed text in `data/parsed/`; **the user
-  must check every expected answer against the guideline.** Do **not** reuse the questions in
-  `scripts/retrieval_check.py` (or close paraphrases): they were used to tune retrieval in
-  Phase 4b, so scoring on them would overstate quality. Include clinician-style paraphrases and
-  two-recommendation questions: Phase 4b's remaining gaps are there (see its "Remaining gaps").
+- `evals/golden_set.json` — ~20 questions across NG136, NG28, NG250: `id`, `question`,
+  `expected_answer`, `expected_source` (title), `recs` (expected recommendation numbers; empty for
+  table answers), `style` (`guideline` | `clinician` | `two_recs` | `negative`). Claude drafts them
+  from the parsed text in `data/parsed/`; **the user must check every expected answer against the
+  guideline.** Do **not** reuse the questions in `scripts/retrieval_check.py` (or close
+  paraphrases): they were used to tune retrieval in Phase 4b, so scoring on them would overstate
+  quality. Include clinician-style paraphrases and two-recommendation questions: Phase 4b's
+  remaining gaps are there (see its "Remaining gaps").
+  Plus 3–4 **hard negatives** (`kind: "refusal"`): questions the guidelines don't answer
+  (hypertension in pregnancy, type 1 insulin starting dose, gestational diabetes, COVID-19
+  antivirals), reworded from `retrieval_check.HARD_NEGATIVES` (those calibrated the question gate).
 - `evals/judge.py` — `GroqJudge(DeepEvalBaseLLM)` using `settings.groq_judge_model`, with 429 retries
   (`retry_on_rate_limit`) and a small delay between calls. **The judge should default to
   `qwen/qwen3.8-27b`** (change `groq_judge_model`'s default in `src/config.py` and `.env.example`):
   it has its own rate limit, separate from the generator and guardrail models, and is from a different
   model family than the gpt-oss generator, so the judge doesn't grade answers written in its own style.
-- `evals/run_evals.py` — runs `RAGService.ask` per question; computes retrieval hit rate
-  (expected source in retrieved citations, no LLM needed) plus DeepEval `FaithfulnessMetric`,
-  `AnswerRelevancyMetric`, `ContextualPrecisionMetric`, `ContextualRecallMetric` with the Groq judge,
-  sequentially. Flags: `--limit N`, `--no-llm-metrics`. Writes `evals/results/<timestamp>.json` and a
-  Markdown summary; exits non-zero if below thresholds.
+  Counts judge tokens (Groq `usage`, estimated when missing).
+- `evals/run_evals.py` — runs `RAGService.ask_with_nodes` per question, sequentially:
+  - **retrieval hit rate** (no LLM): recommendation-level — every rec in `recs` is in the retrieved
+    chunks, the same rule as `scripts.retrieval_check` (shared `nice.find_rec`); falls back to the
+    title when `recs` is empty. Title-level hit (expected source among the citations) is a
+    secondary, ungated column.
+  - DeepEval `FaithfulnessMetric`, `AnswerRelevancyMetric`, `ContextualPrecisionMetric`,
+    `ContextualRecallMetric`, and a **correctness** `GEval` (answer vs `expected_answer`, criteria on
+    clinical completeness: penalise missing drugs, options, thresholds or exceptions and
+    contradictions), all with the Groq judge and their own thresholds.
+  - **hard negatives**: no judge calls; a correct refusal is `insufficient_evidence` or an answer
+    that only points to another guideline. Refusal rate reported and gated separately.
+  - Flags: `--limit N`, `--no-llm-metrics`, `--metrics a,b` (subset, for cheaper runs),
+    `--resume <results.json>`, `--judge-delay`, `--threshold name=value`.
+  - The results file `evals/results/<timestamp>.json` is saved after every case; `--resume` skips
+    finished cases, so a run that hits the daily token limit continues the next day. Markdown
+    summary next to it, with judge tokens per case. Exits non-zero if below thresholds.
+- `RAGService.ask_with_nodes` — `ask` plus the retrieved nodes (their metadata has `rec_ids`;
+  `RAGResponse.contexts` is text only).
 - `medrag eval` CLI command calls it.
 
 **Dependencies:** `deepeval`.
 
-**Tests:** unit-test the hit-rate calculation and results writer with fake responses (no judge calls).
+**Tests:** unit-test hit rates, refusal scoring, thresholds, the results writer and resume with fake
+responses and fake metrics (no judge calls); the judge against a scripted Groq client.
 
 **User verifies:** `python -m evals.run_evals --limit 3` first, then the full set.
+
+*As built:*
+- `evals` is a package listed in `pyproject.toml` (`packages.find include = ["src*", "evals*"]`,
+  package-data `golden_set.json`): the editable install only mapped `src`, so the `medrag` console
+  script couldn't import `evals`.
+- `evals/__init__.py` sets `DEEPEVAL_DISABLE_DOTENV=1` (DeepEval otherwise copies `.env` into
+  `os.environ` on import) and `DEEPEVAL_TELEMETRY_OPT_OUT=1`, before anything imports DeepEval.
+- Judge: `GROQ_JUDGE_REASONING_EFFORT` (default `none`, which qwen3.8 accepts; empty = not sent)
+  instead of the global gpt-oss `GROQ_REASONING_EFFORT`. Replies are cleaned of `<think>` blocks and
+  fences and returned as the requested schema instance (DeepEval 4.3's custom-model contract; on a
+  mismatch the text is returned and DeepEval parses it). No logprobs, so GEval takes its score from
+  the JSON reply.
+- Metrics use `async_mode=False`; the four built-in ones `include_reason=False` (saves a judge call
+  each). Correctness passes explicit `evaluation_steps`, so GEval doesn't spend a call writing them.
+  About 8 judge calls per answer case. Params use `SingleTurnParams` (`LLMTestCaseParams` is
+  deprecated in 4.3).
+- A case with nothing retrieved (question gate) scores 0 on every metric without judge calls.
+- Refusal heuristic: a pointer phrase ("guideline on", "covered in/by", "not covered", "outside
+  the scope") and no dose (number + mg/g/micrograms/units/ml/mmol). Check refused answers in the
+  results file; an answer that names a drug without a dose and also points elsewhere counts as a
+  refusal.
+- Thresholds (`THRESHOLDS`): rec_hit_rate 0.8, refusal_rate 0.75, faithfulness 0.7,
+  answer_relevancy 0.7, contextual_precision 0.6, contextual_recall 0.7, correctness 0.6. A check
+  with no data (no negatives within `--limit`) is skipped; a metric whose every case errored fails.
+- The results file is rewritten atomically after every case (temp file + `os.replace`), so it is
+  always valid JSON; it keeps each case's answer and contexts, so `--resume` computes only missing
+  or errored metrics without asking again (also `--resume X --metrics correctness` to add one).
+  Cases whose ask failed are asked again. Another project or judge model → error.
+- A Groq 429 that outlasts the retries (generator or judge, e.g. the daily limit) saves and exits
+  with code 2. Exit codes: 0 pass, 1 below a threshold or a case failed, 2 stopped early.
+- Golden-set order is round-robin across guidelines with negatives interleaved, so `--limit 3`
+  covers all three guidelines and `--limit 4` includes a negative.
 
 **Effort:** High. Use Plan mode.
 
