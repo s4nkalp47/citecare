@@ -296,6 +296,20 @@ def test_safeguard_sees_policy_question_answer_and_snippets():
     assert "[1] Hypertension in adults (NG136), page 12: Offer an ACE inhibitor" in user
 
 
+def test_safeguard_gets_cited_snippets_only_not_the_context():
+    # Phase 4b retrieves up to ~18 context blocks; only the cited ones go to the 8K-TPM model.
+    contexts = [f"UNCITED CONTEXT BLOCK {i} " + "filler " * 200 for i in range(18)]
+    response = _response(citations=[_citation(1), _citation(3)]).model_copy(
+        update={"contexts": contexts})
+    guard, client = _output_guard(safety=[OK])
+    guard.check("First-line for hypertension with diabetes?", response)
+
+    user = client.calls[0]["messages"][1]["content"]
+    assert "UNCITED CONTEXT BLOCK" not in user
+    assert user.count("Hypertension in adults (NG136), page 12:") == 2
+    assert len(user) < 1500
+
+
 @pytest.mark.parametrize("confidence", ["high", "medium", "low"])
 def test_uncited_answer_blocked_without_safeguard_call(confidence):
     guard, client = _output_guard()

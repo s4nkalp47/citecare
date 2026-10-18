@@ -1,4 +1,4 @@
-"""Shared test doubles: keyword embedding, scripted LLM and Groq client (no network)."""
+"""Shared test doubles: keyword embedding and reranker, scripted LLM and Groq client (no network)."""
 
 import math
 import re
@@ -8,6 +8,8 @@ from types import SimpleNamespace
 
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms import ChatMessage, ChatResponse, MessageRole
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
+from llama_index.core.schema import NodeWithScore, QueryBundle
 
 _STOPWORDS = {"a", "an", "the", "is", "are", "for", "with", "to", "of", "and", "in", "or", "what",
               "how", "which", "should", "be", "as", "on", "who", "adults"}
@@ -35,6 +37,24 @@ class KeywordEmbedding(BaseEmbedding):
 
     async def _aget_query_embedding(self, query: str) -> list[float]:
         return self._vector(query)
+
+
+def _words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in _STOPWORDS}
+
+
+class KeywordReranker(BaseNodePostprocessor):
+    """Stands in for the cross-encoder: score = share of query words found in the chunk."""
+
+    top_n: int = 4
+
+    def _postprocess_nodes(self, nodes: list[NodeWithScore],
+                           query_bundle: QueryBundle | None = None) -> list[NodeWithScore]:
+        query = _words(query_bundle.query_str)
+        scored = [NodeWithScore(node=n.node,
+                                score=len(query & _words(n.node.get_content())) / (len(query) or 1))
+                  for n in nodes]
+        return sorted(scored, key=lambda n: n.score, reverse=True)[:self.top_n]
 
 
 class FakeLLM:

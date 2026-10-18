@@ -5,10 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 if TYPE_CHECKING:
     from llama_index.core import Document
+    from llama_index.core.node_parser import NodeParser
 
 
 class SourceIngestor(Protocol):
@@ -41,8 +42,21 @@ class ProjectConfig:
     chunk_size: int = 512
     chunk_overlap: int = 64
     similarity_top_k: int = 4
-    # Retrieved chunks scoring below this are dropped; none left -> insufficient_evidence.
+    # Candidates fetched for the cross-encoder reranker (settings.rerank_model), which keeps the
+    # best similarity_top_k. 0 = no reranking: the vector search returns similarity_top_k itself.
+    rerank_candidates: int = 0
+    # Dense + BM25 sparse (settings.sparse_model) search. Needs a collection built with it on.
+    hybrid: bool = False
+    # Add each retrieved chunk's neighbours from the same `section` (src/core/neighbours.py):
+    # "off" | "budget" (within similarity_top_k) | "window" (attached, up to 3 x top_k chunks).
+    neighbour_mode: Literal["off", "budget", "window"] = "off"
+    # A question whose best chunk scores below this gets insufficient_evidence (the context is not
+    # filtered). It applies to the final score: the reranker's when rerank_candidates > 0, else
+    # cosine.
     similarity_cutoff: float = 0.5
+    # Optional second gate on the best vector-search (cosine) score, before reranking: a question
+    # passes if either score reaches its cutoff. None = final score only.
+    dense_cutoff: float | None = None
     # Output policy enforced by the output guardrail (Phase 6).
     require_citations: bool = True
     disclaimer: str = ""
@@ -51,6 +65,8 @@ class ProjectConfig:
     safety_policy: str = ""
     # Builds the ingestor used for runtime uploads, so the core never imports the plugin.
     ingestor_factory: Callable[[ProjectConfig], SourceIngestor] | None = None
+    # Builds the chunker; None = SentenceSplitter(chunk_size, chunk_overlap). (Phase 4b)
+    node_parser_factory: Callable[[ProjectConfig], NodeParser] | None = None
 
 
 _REGISTRY: dict[str, ProjectConfig] = {}

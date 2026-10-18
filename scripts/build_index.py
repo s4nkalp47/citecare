@@ -6,6 +6,8 @@ Run from the project root:
     python -m scripts.build_index                    # guidelines + bootstrap + PubMed
     python -m scripts.build_index --no-pubmed
     python -m scripts.build_index --max-results 3    # PubMed results per query
+    python -m scripts.build_index --rebuild          # drop the collection and re-index everything
+                                                     # (after changing chunking or hybrid)
 """
 
 import argparse
@@ -13,6 +15,7 @@ import logging
 
 from src.core.indexer import Indexer
 from src.core.projects import get_project
+from src.core.vector_store import count_duplicate_chunks
 from src.plugins.medrag.ingestor import MedRAGIngestor
 
 
@@ -21,6 +24,8 @@ def main() -> None:
     parser.add_argument("--project", default="medrag")
     parser.add_argument("--no-pubmed", action="store_true")
     parser.add_argument("--max-results", type=int, default=5, help="PubMed results per query")
+    parser.add_argument("--rebuild", action="store_true",
+                        help="delete the collection and docstore first, then index everything")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -28,12 +33,16 @@ def main() -> None:
 
     docs = MedRAGIngestor(project).load_all(include_pubmed=not args.no_pubmed,
                                             pubmed_max_results=args.max_results)
-    stats = Indexer(project).run(docs)
+    indexer = Indexer(project)
+    if args.rebuild:
+        indexer.reset()
+    stats = indexer.run(docs)
 
     print(f"\nCollection:     {project.collection_name}")
     print(f"Documents in:   {stats.documents_in}")
     print(f"Chunks written: {stats.chunks_written}")
     print(f"Total points:   {stats.total_points}")
+    print(f"Duplicate chunks: {count_duplicate_chunks(project, indexer.client)}")
 
 
 if __name__ == "__main__":

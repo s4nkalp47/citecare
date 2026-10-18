@@ -51,11 +51,7 @@ class Indexer:
 
     def run(self, documents: list[Document]) -> IndexStats:
         pipeline = IngestionPipeline(
-            transformations=[
-                SentenceSplitter(chunk_size=self.project.chunk_size,
-                                 chunk_overlap=self.project.chunk_overlap),
-                self.embed_model,
-            ],
+            transformations=[self._node_parser(), self.embed_model],
             vector_store=get_vector_store(self.project, self.client),
             docstore=self.docstore,
             docstore_strategy=DocstoreStrategy.UPSERTS,
@@ -67,6 +63,24 @@ class Indexer:
                            total_points=count_points(self.project, self.client))
         logger.info("Indexed %s", stats)
         return stats
+
+    def _node_parser(self):
+        if self.project.node_parser_factory is not None:
+            return self.project.node_parser_factory(self.project)
+        return SentenceSplitter(chunk_size=self.project.chunk_size,
+                                chunk_overlap=self.project.chunk_overlap)
+
+    def reset(self) -> None:
+        """Drop the collection and forget every Document, so the next run re-indexes everything.
+
+        Needed after changing chunking or hybrid: Document hashes don't change, so the docstore
+        would otherwise skip every document.
+        """
+        if self.client.collection_exists(self.project.collection_name):
+            self.client.delete_collection(self.project.collection_name)
+        self.docstore = SimpleDocumentStore()
+        self._persist_docstore()
+        logger.info("Reset collection '%s' and its docstore", self.project.collection_name)
 
     def delete_source(self, source_id: str) -> int:
         """Remove a source from Qdrant and the docstore, so a later run can re-add it."""

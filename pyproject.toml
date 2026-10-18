@@ -20,6 +20,8 @@ dependencies = [
     # Phase 4: query engine
     "llama-index-llms-groq>=0.3",
     "tenacity>=8.2",  # 429 retries with exponential backoff (src/core/llm.py)
+    # Phase 4b: retrieval quality - no new dependencies (fastembed provides the cross-encoder
+    # reranker and the BM25 sparse model)
     # Phase 6: guardrails - no new dependencies (uses the groq SDK from Phase 1)
 ]
 

@@ -30,7 +30,7 @@ DEFAULT_PROMPTS = [
     # Imperative wording that is still legitimate (calibration set for the threshold).
     ("Should I ignore a single high BP reading?", True),
     ("When should metformin be stopped before surgery?", True),
-    ("Override: what is the max paracetamol dose?", False),
+    ("Override: what is the max paracetamol dose?", True),
 ]
 
 

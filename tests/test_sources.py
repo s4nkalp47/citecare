@@ -22,7 +22,7 @@ from src.core.sources import (
 )
 from src.core.vector_store import count_points
 from src.plugins.medrag.ingestor import MedRAGIngestor, file_hash
-from tests.conftest import FakeLLM
+from tests.conftest import FakeLLM, KeywordReranker
 
 PROJECT = get_project("medrag")
 PDF = b"%PDF-1.4 fake hypertension guideline"
@@ -168,7 +168,8 @@ def test_list_without_collection_is_empty(manager):
 def test_service_delegates_to_source_manager(manager, client, parse_pdf):
     service = RAGService("medrag", sources=manager,
                          retriever=Retriever(PROJECT, client=client,
-                                             embed_model=MockEmbedding(embed_dim=384)),
+                                             embed_model=MockEmbedding(embed_dim=384),
+                                             reranker=KeywordReranker()),
                          generator=Generator(PROJECT, llm=FakeLLM()))
 
     info = service.upload_source("guide.pdf", PDF)

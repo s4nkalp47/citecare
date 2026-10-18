@@ -39,6 +39,8 @@ INVALID_OUTPUT_ANSWER = "The model did not return a valid structured answer. Ple
 
 _FENCE = re.compile(r"^```(?:json)?\s*|\s*```$")
 _MARKER = re.compile(r"\[\d+\]")
+# gpt-oss sometimes writes 【2】 or 【2†L3-L5】 instead of [2].
+_FULLWIDTH_MARKER = re.compile(r"【(\d+)(?:†[^】]*)?】")
 
 
 class LLMAnswer(BaseModel):
@@ -109,7 +111,7 @@ class Generator:
 
         # Keep only block numbers that exist, once each, in the order the LLM cited them.
         refs = [r for r in dict.fromkeys(parsed.cited_sources) if 1 <= r <= len(nodes)]
-        answer = parsed.answer
+        answer = _FULLWIDTH_MARKER.sub(r"[\1]", parsed.answer)
         if refs and not _MARKER.search(answer):
             # The model cited sources but left no inline markers: append them so they still show.
             answer = answer.rstrip() + " " + "".join(f"[{r}]" for r in refs)

@@ -11,8 +11,10 @@ from unittest.mock import patch
 import pytest
 from llama_index.core import Document
 from llama_index.core.base.response.schema import PydanticResponse
+from llama_index.core.bridge.pydantic import Field
 from llama_index.core.llms import ChatMessage
-from llama_index.core.schema import NodeWithScore, TextNode
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
+from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
 from qdrant_client import QdrantClient
 from tenacity import wait_none
 
@@ -25,10 +27,12 @@ from src.core.projects import get_project
 from src.core.query_engine import NO_EVIDENCE_ANSWER, RAGQueryEngine
 from src.core.retriever import Retriever
 from src.core.service import RAGService
-from tests.conftest import FakeLLM, KeywordEmbedding
+from tests.conftest import FakeLLM, KeywordEmbedding, KeywordReranker
 
-# Fixed cutoff so these tests don't depend on the calibrated MedRAG value.
-PROJECT = dataclasses.replace(get_project("medrag"), similarity_cutoff=0.3)
+# Fixed cutoff so these tests don't depend on the calibrated MedRAG value. Dense-only: the
+# reranker tests below opt in with their own config and a stub reranker.
+PROJECT = dataclasses.replace(get_project("medrag"), similarity_cutoff=0.3, rerank_candidates=0,
+                              hybrid=False, neighbour_mode="off")
 NG136_URL = "https://www.nice.org.uk/guidance/ng136"
 
 
@@ -82,7 +86,16 @@ def _service(retriever: Retriever, llm: FakeLLM) -> RAGService:
 def test_retriever_ranks_relevant_chunk_first(retriever):
     nodes = retriever.retrieve("metformin first-line treatment type 2 diabetes")
     assert nodes[0].node.metadata["title"] == "NICE NG28 Type2 Diabetes"
-    assert all(n.score >= PROJECT.similarity_cutoff for n in nodes)
+    assert nodes[0].score >= PROJECT.similarity_cutoff
+
+
+def test_cutoff_gates_the_question_and_keeps_the_context(retriever, client):
+    # The best chunk passes, so weaker chunks stay in the context instead of being pruned.
+    gated = Retriever(dataclasses.replace(PROJECT, similarity_top_k=3, similarity_cutoff=0.5),
+                      client=client, embed_model=KeywordEmbedding())
+    nodes = gated.retrieve("metformin first-line treatment type 2 diabetes")
+    assert len(nodes) == 3
+    assert nodes[0].score >= 0.5 > nodes[-1].score
 
 
 def test_retriever_source_type_filter(retriever):
@@ -99,6 +112,88 @@ def test_retriever_missing_collection_returns_empty(client):
     retriever = Retriever(PROJECT, client=client, embed_model=KeywordEmbedding())
     assert retriever.search("metformin") == []
     assert retriever.retrieve("metformin") == []
+
+
+# ---------- Reranking ----------
+
+class _ReverseReranker(BaseNodePostprocessor):
+    """Scores candidates in reverse dense order, so reranking visibly changes the result."""
+
+    top_n: int = 2
+    pool_sizes: list[int] = Field(default_factory=list)
+
+    def _postprocess_nodes(self, nodes: list[NodeWithScore],
+                           query_bundle: QueryBundle | None = None) -> list[NodeWithScore]:
+        self.pool_sizes.append(len(nodes))
+        scored = [NodeWithScore(node=n.node, score=(i + 1) / len(nodes))
+                  for i, n in enumerate(nodes)]
+        return scored[::-1][:self.top_n]
+
+
+def _rerank_project(**overrides):
+    return dataclasses.replace(PROJECT, rerank_candidates=3, similarity_top_k=2, **overrides)
+
+
+def test_reranker_reorders_candidate_pool(retriever, client):
+    dense = Retriever(dataclasses.replace(PROJECT, similarity_top_k=3), client=client,
+                      embed_model=KeywordEmbedding()).search("type 2 diabetes treatment")
+    reranker = _ReverseReranker(pool_sizes=[])
+    reranked = Retriever(_rerank_project(), client=client, embed_model=KeywordEmbedding(),
+                         reranker=reranker).search("type 2 diabetes treatment")
+
+    assert reranker.pool_sizes == [3]  # rerank_candidates fetched, not similarity_top_k
+    assert len(reranked) == 2
+    assert reranked[0].node.node_id == dense[-1].node.node_id
+    assert reranked[0].score == pytest.approx(1.0)  # the reranker's score replaces cosine
+
+
+def test_cutoff_applies_to_reranker_scores(retriever, client):
+    rr = Retriever(_rerank_project(similarity_cutoff=0.5), client=client,
+                   embed_model=KeywordEmbedding(), reranker=KeywordReranker(top_n=2))
+
+    [top] = rr.retrieve("metformin first-line")[:1]
+    assert top.node.metadata["title"] == "NICE NG28 Type2 Diabetes"
+    assert top.score == pytest.approx(1.0)
+    # 1 of 4 query words matches: 0.25 is below the cutoff, so nothing is usable.
+    assert rr.search("metformin zebra stripes savanna")
+    assert rr.retrieve("metformin zebra stripes savanna") == []
+
+
+class _NoMatchReranker(BaseNodePostprocessor):
+    """A cross-encoder that finds nothing relevant (like MiniLM on some paraphrases)."""
+
+    top_n: int = 2
+
+    def _postprocess_nodes(self, nodes: list[NodeWithScore],
+                           query_bundle: QueryBundle | None = None) -> list[NodeWithScore]:
+        return [NodeWithScore(node=n.node, score=1e-5) for n in nodes][:self.top_n]
+
+
+def _gated(client, dense_cutoff):
+    return Retriever(_rerank_project(similarity_cutoff=0.001, dense_cutoff=dense_cutoff),
+                     client=client, embed_model=KeywordEmbedding(), reranker=_NoMatchReranker())
+
+
+def test_dense_score_rescues_question_the_reranker_misses(retriever, client):
+    question = "metformin first-line treatment type 2 diabetes"
+    nodes, dense = _gated(client, 0.5).search_with_dense_score(question)
+    assert nodes[0].score < 0.001 and dense >= 0.5  # reranker misses it, the bi-encoder doesn't
+
+    assert _gated(client, 0.5).retrieve(question)  # either gate passing is enough
+    assert _gated(client, None).retrieve(question) == []  # reranker score only
+
+
+def test_question_rejected_when_both_scores_are_low(retriever, client):
+    assert _gated(client, 0.5).retrieve("zebra stripes savanna") == []
+
+
+def test_reranker_unused_when_rerank_candidates_is_zero(retriever, client):
+    reranker = _ReverseReranker(pool_sizes=[])
+    dense = Retriever(PROJECT, client=client, embed_model=KeywordEmbedding(), reranker=reranker)
+
+    assert dense.reranker is None
+    assert dense.search("metformin first-line")[0].node.metadata["title"] ==         "NICE NG28 Type2 Diabetes"
+    assert reranker.pool_sizes == []
 
 
 # ---------- Generator ----------
@@ -138,6 +233,13 @@ def test_missing_inline_markers_are_appended():
 
 def test_existing_inline_markers_are_kept():
     llm = FakeLLM(_reply(answer="Offer metformin [2].", cited=[2]))
+    response = Generator(PROJECT, llm=llm).generate("q", _nodes())
+    assert response.answer == "Offer metformin [2]."
+
+
+@pytest.mark.parametrize("marker", ["【2】", "【2†L3-L5】", "【2†source】"])
+def test_fullwidth_markers_are_normalised(marker):
+    llm = FakeLLM(_reply(answer=f"Offer metformin {marker}.", cited=[2]))
     response = Generator(PROJECT, llm=llm).generate("q", _nodes())
     assert response.answer == "Offer metformin [2]."
 

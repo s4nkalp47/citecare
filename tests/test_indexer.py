@@ -1,5 +1,6 @@
 """Indexer tests: in-memory Qdrant and a mock embedding model, no network."""
 
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -9,9 +10,9 @@ from qdrant_client import QdrantClient
 
 from src.core.indexer import Indexer
 from src.core.projects import get_project
-from src.core.vector_store import count_points, delete_by_source_id
+from src.core.vector_store import count_duplicate_chunks, count_points, delete_by_source_id
 
-PROJECT = get_project("medrag")
+PROJECT = dataclasses.replace(get_project("medrag"), hybrid=False)  # no BM25 model download
 
 
 def _doc(doc_id: str, source_id: str, text: str, **metadata) -> Document:
@@ -100,9 +101,11 @@ def test_metadata_only_change_replaces_chunks(make_indexer, client):
             doc.metadata["url"] = url
     stats = make_indexer().run(changed)
 
-    assert stats.chunks_written == before_a  # only source "a" re-embedded
-    assert count_points(PROJECT, client) == before  # replaced, not duplicated
-    assert count_points(PROJECT, client, source_id="a") == before_a
+    # Longer metadata can change how source "a" splits, so compare against its new chunk count.
+    after_a = count_points(PROJECT, client, source_id="a")
+    assert stats.chunks_written == after_a  # only source "a" re-embedded
+    assert count_points(PROJECT, client) == before - before_a + after_a  # replaced, not added
+    assert count_duplicate_chunks(PROJECT, client) == 0
     assert all(p.get("url") == url for p in _payloads(client) if p["source_id"] == "a")
 
 
@@ -139,3 +142,28 @@ def test_wiped_collection_triggers_full_reindex(make_indexer, client):
 
     stats = make_indexer().run(_docs())
     assert stats.chunks_written == first.chunks_written
+
+
+def test_reset_reindexes_everything(make_indexer, client):
+    # e.g. after changing chunk_size: unchanged Document hashes would otherwise skip every doc.
+    first = make_indexer().run(_docs())
+    indexer = make_indexer()
+    indexer.reset()
+    assert count_points(PROJECT, client) == 0
+    assert not indexer.docstore.docs
+
+    stats = make_indexer().run(_docs())
+    assert stats.chunks_written == first.chunks_written
+    assert stats.total_points == first.total_points
+    assert count_duplicate_chunks(PROJECT, client) == 0
+
+
+def test_count_duplicate_chunks(make_indexer, client, tmp_path):
+    assert count_duplicate_chunks(PROJECT, client) == 0  # no collection yet
+    first = make_indexer().run(_docs())
+    assert count_duplicate_chunks(PROJECT, client) == 0
+
+    # A second docstore doesn't know the documents, so it inserts every chunk again.
+    Indexer(PROJECT, client=client, embed_model=MockEmbedding(embed_dim=384),
+            storage_dir=tmp_path / "other").run(_docs())
+    assert count_duplicate_chunks(PROJECT, client) == first.chunks_written

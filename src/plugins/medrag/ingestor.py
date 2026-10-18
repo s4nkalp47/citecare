@@ -6,8 +6,12 @@ Every Document carries:
     source_id    stable id of the whole source (file hash or PMC id), used to
                  dedupe and to delete a source's chunks later
     title        human-readable name used in citations
-    page         page number (guidelines only)
+    page         page number (guidelines only; for NICE guidelines set per chunk by the parser)
     url          link to the original (when known; NICE guideline urls come from the file name)
+
+NICE guidelines become one Document per guideline (pages joined with markers, doc_format
+"nice_guideline") so `nice.NiceGuidelineParser` can chunk by recommendation across page breaks.
+Other PDFs stay one Document per page.
 """
 
 from __future__ import annotations
@@ -22,13 +26,15 @@ from llama_index.core import Document, SimpleDirectoryReader
 
 from src.config import Settings, get_settings
 from src.core.projects import ProjectConfig
+from src.plugins.medrag.nice import DOC_FORMAT, is_nice_guideline, join_pages
 from src.plugins.medrag.pubmed import PubMedAbstractReader
 
 logger = logging.getLogger(__name__)
 
-# Keys the embedding model and LLM don't need to see.
-_HIDDEN_FROM_EMBED = ["source_id", "url", "file_name"]
-_HIDDEN_FROM_LLM = ["source_id", "file_name"]
+# Keys the embedding model and LLM don't need to see. PubMed's `query` (the search that found the
+# abstract) is provenance: embedded, it made every abstract look relevant to its query's words.
+HIDDEN_FROM_EMBED = ["source_id", "url", "file_name", "query", "doc_format"]
+HIDDEN_FROM_LLM = ["source_id", "file_name", "query", "doc_format"]
 
 _GUIDELINE_CODE = re.compile(r"^[a-z]{1,3}\d+$")  # ng136, cg191
 _ACRONYMS = {"nice", "who", "ada", "cdc", "idsa", "ats"}
@@ -76,8 +82,8 @@ def pages_from_parse_result(result, file_name: str) -> list[dict]:
 
 def _make_doc(text: str, doc_id: str, **metadata) -> Document:
     doc = Document(text=text, id_=doc_id, metadata=metadata)
-    doc.excluded_embed_metadata_keys = _HIDDEN_FROM_EMBED
-    doc.excluded_llm_metadata_keys = _HIDDEN_FROM_LLM
+    doc.excluded_embed_metadata_keys = list(HIDDEN_FROM_EMBED)
+    doc.excluded_llm_metadata_keys = list(HIDDEN_FROM_LLM)
     return doc
 
 
@@ -110,16 +116,29 @@ class MedRAGIngestor:
 
     # ---------- Guideline PDFs (LlamaParse, cached) ----------
 
-    def load_guidelines(self, paths: list[Path] | None = None) -> list[Document]:
+    def load_guidelines(self, paths: list[Path] | None = None,
+                        join_nice: bool = True) -> list[Document]:
+        """One Document per NICE guideline (`join_nice`), else one per page."""
         paths = paths if paths is not None else sorted(self.guidelines_dir.glob("*.pdf"))
         docs: list[Document] = []
         for path in paths:
             source_id = file_hash(path)
             title = title_from_filename(path)
             url = url_from_filename(path)
-            for page in self._parsed_pages(path, source_id):
-                if not page["markdown"].strip():
-                    continue
+            pages = [p for p in self._parsed_pages(path, source_id) if p["markdown"].strip()]
+            if join_nice and is_nice_guideline(pages):
+                docs.append(_make_doc(
+                    join_pages(pages),
+                    doc_id=source_id,
+                    source_type="guideline",
+                    source_id=source_id,
+                    title=title,
+                    file_name=path.name,
+                    url=url,
+                    doc_format=DOC_FORMAT,
+                ))
+                continue
+            for page in pages:
                 docs.append(_make_doc(
                     page["markdown"],
                     doc_id=f"{source_id}:p{page['page']}",
@@ -130,7 +149,7 @@ class MedRAGIngestor:
                     file_name=path.name,
                     url=url,
                 ))
-        logger.info("Loaded %d guideline pages from %d PDFs", len(docs), len(paths))
+        logger.info("Loaded %d guideline documents from %d PDFs", len(docs), len(paths))
         return docs
 
     def _parsed_pages(self, path: Path, source_id: str) -> list[dict]:

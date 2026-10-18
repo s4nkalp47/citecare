@@ -31,6 +31,14 @@ class Settings(BaseSettings):
 
     embed_model: str = "BAAI/bge-small-en-v1.5"
     embed_dim: int = 384
+    # Prepended to questions (not documents) before embedding. bge v1.5 retrieval instruction;
+    # FastEmbed does not add it itself. Empty = off. (Phase 4b)
+    embed_query_instruction: str = "Represent this sentence for searching relevant passages: "
+    # Local FastEmbed cross-encoder that re-scores the retrieved candidates (Phase 4b).
+    # Projects opt in with ProjectConfig.rerank_candidates.
+    rerank_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
+    # FastEmbed sparse model for hybrid search (projects with ProjectConfig.hybrid).
+    sparse_model: str = "Qdrant/bm25"
 
     ncbi_api_key: str = ""
 

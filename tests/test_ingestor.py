@@ -65,6 +65,32 @@ def test_load_guidelines_builds_page_documents(ingestor):
     assert "source_id" in first.excluded_embed_metadata_keys
 
 
+NICE_PAGES = [
+    {"page": 1, "markdown": "# NICE guideline\n\n# Hypertension in adults"},
+    {"page": 2, "markdown": "\n".join(f"1.4.{i} Offer treatment option {i}." for i in range(1, 8))},
+    {"page": 3, "markdown": "\n".join(f"1.4.{i} Review option {i}." for i in range(8, 14))},
+]
+
+
+def test_nice_guideline_becomes_one_document(ingestor):
+    _fake_pdf(ingestor)
+    with patch.object(MedRAGIngestor, "_parse_pdf", return_value=NICE_PAGES):
+        [doc] = ingestor.load_guidelines()
+
+    assert doc.id_ == doc.metadata["source_id"]
+    assert doc.metadata["doc_format"] == "nice_guideline"
+    assert "page" not in doc.metadata  # set per chunk by the parser
+    assert "<!-- page 3 -->" in doc.text
+    assert "doc_format" in doc.excluded_embed_metadata_keys
+
+
+def test_nice_guideline_pages_when_not_joined(ingestor):
+    _fake_pdf(ingestor)
+    with patch.object(MedRAGIngestor, "_parse_pdf", return_value=NICE_PAGES):
+        docs = ingestor.load_guidelines(join_nice=False)
+    assert [d.metadata["page"] for d in docs] == [1, 2, 3]
+
+
 def test_guideline_parse_is_cached(ingestor):
     _fake_pdf(ingestor)
     with patch.object(MedRAGIngestor, "_parse_pdf", return_value=FAKE_PAGES) as parse:
@@ -101,6 +127,10 @@ def test_load_pubmed_normalizes_and_dedupes(ingestor):
     assert docs[0].metadata["title"] == "ACE inhibitors in hypertension"
     assert docs[0].metadata["source_type"] == "pubmed"
     assert docs[0].metadata["year"] == "2020"
+    # The search query is provenance: kept as metadata, never embedded or shown to the LLM.
+    assert docs[0].metadata["query"] == "q1"
+    assert "query" in docs[0].excluded_embed_metadata_keys
+    assert "query" in docs[0].excluded_llm_metadata_keys
 
 
 def test_load_pubmed_skips_records_without_abstract(ingestor):
